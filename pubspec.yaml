@@ -1,0 +1,39 @@
+name: aftercredits
+description: "AfterCredits — Your Cinematic Universe. A movie community app inspired by Letterboxd."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Auth
+  google_sign_in: ^6.2.1
+
+  # UI & Fonts
+  google_fonts: ^6.2.1
+  smooth_page_indicator: ^1.2.0
+  animate_do: ^3.3.4
+  cached_network_image: ^3.4.1
+
+  # Storage
+  shared_preferences: ^2.3.2
+
+  # HTTP
+  http: ^1.2.2
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
