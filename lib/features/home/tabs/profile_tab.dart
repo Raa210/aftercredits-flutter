@@ -1,3 +1,4 @@
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,6 +7,31 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../../../models/user_profile_model.dart';
 import '../../auth/login_screen.dart';
+import 'settings_screen.dart';
+
+// ─── Reverse map: genre ID → nama ────────────────────────
+const Map<int, String> _kGenreNames = {
+  28: 'Aksi',
+  18: 'Drama',
+  878: 'Sci-Fi',
+  35: 'Komedi',
+  53: 'Thriller',
+  27: 'Horor',
+  10749: 'Romansa',
+  16: 'Animasi',
+  99: 'Dokumenter',
+  80: 'Kriminal',
+};
+
+// Warna untuk setiap genre (max 6 ditampilkan)
+const List<Color> _kGenreColors = [
+  AppColors.accentRed,
+  Color(0xFF0EA5E9),
+  Color(0xFF7C3AED),
+  Color(0xFFF59E0B),
+  Color(0xFF10B981),
+  Color(0xFFEC4899),
+];
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -17,11 +43,18 @@ class ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<ProfileTab> {
   UserProfileModel? _profile;
   bool _loadingProfile = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _fetchProfile();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchProfile() async {
@@ -39,7 +72,8 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
-  // Helper to extract display name from Supabase User
+  // Helper: display name dengan @ prefix dari username Supabase,
+  // fallback ke Google metadata jika profil belum ada
   String _displayName(User user) {
     if (_profile != null && _profile!.username.isNotEmpty) {
       return '@${_profile!.username}';
@@ -51,13 +85,29 @@ class _ProfileTabState extends State<ProfileTab> {
         'User';
   }
 
-  // Helper to get avatar URL from profile or Google metadata
+  // Helper: avatar URL dari Supabase Storage, fallback ke Google picture
   String? _avatarUrl(User user) {
     if (_profile?.avatarUrl != null && _profile!.avatarUrl!.isNotEmpty) {
       return _profile!.avatarUrl;
     }
     final meta = user.userMetadata;
     return meta?['avatar_url'] as String? ?? meta?['picture'] as String?;
+  }
+
+  // Format tanggal bergabung dari createdAt → "Juli 2025"
+  String _joinedLabel(DateTime dt) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    ];
+    return 'Bergabung ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  // Buka halaman Pengaturan
+  void _openSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
   }
 
   @override
@@ -71,37 +121,37 @@ class _ProfileTabState extends State<ProfileTab> {
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.accentRed))
           : CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Header
-          SliverToBoxAdapter(
-              child: isGuest
-                  ? _buildGuestHeader(context)
-                  : _buildUserHeader(
-                      _displayName(user!),
-                      user.email,
-                      _avatarUrl(user),
-                    ),
-          ),
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── Header ──────────────────────────────────
+                SliverToBoxAdapter(
+                  child: isGuest
+                      ? _buildGuestHeader(context)
+                      : _buildUserHeader(
+                          _displayName(user),
+                          user.email,
+                          _avatarUrl(user),
+                        ),
+                ),
 
-          // Stats (only for logged in)
-          if (!isGuest)
-            SliverToBoxAdapter(child: _buildStats()),
+                // ── Stats (logged-in only) ───────────────────
+                if (!isGuest) SliverToBoxAdapter(child: _buildStats()),
 
-          // Tab bar
-          if (!isGuest)
-            SliverToBoxAdapter(child: _buildTabSection(context)),
+                // ── Tab section ─────────────────────────────
+                if (!isGuest)
+                  SliverToBoxAdapter(child: _buildTabSection(context)),
 
-          // Settings / menu
-          SliverToBoxAdapter(
-            child: _buildMenuSection(context, isGuest),
-          ),
-        ],
-      ),
+                // Bottom padding
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 32),
+                ),
+              ],
+            ),
     );
   }
 
-  // ── Guest header ─────────────────────────────────────────
+  // ── Guest header ───────────────────────────────────────
 
   Widget _buildGuestHeader(BuildContext context) {
     return Container(
@@ -120,7 +170,6 @@ class _ProfileTabState extends State<ProfileTab> {
       ),
       child: Column(
         children: [
-          // Avatar placeholder
           Container(
             width: 80,
             height: 80,
@@ -186,10 +235,14 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  // ── Logged-in header ──────────────────────────────────────
+  // ── Logged-in header ────────────────────────────────────
 
   Widget _buildUserHeader(
       String? displayName, String? email, String? photoUrl) {
+    // Tanggal bergabung dari profil Supabase
+    final joinedLabel =
+        _profile != null ? _joinedLabel(_profile!.createdAt) : null;
+
     return Stack(
       children: [
         // Background gradient
@@ -276,34 +329,37 @@ class _ProfileTabState extends State<ProfileTab> {
                           fontSize: 12,
                         ),
                       ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentRed.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: AppColors.accentRed.withOpacity(0.3)),
-                      ),
-                      child: const Text(
-                        'Bergabung Juni 2024',
-                        style: TextStyle(
-                          color: AppColors.accentRed,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                    if (joinedLabel != null) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentRed.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppColors.accentRed.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          joinedLabel,
+                          style: const TextStyle(
+                            color: AppColors.accentRed,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
 
-              // Settings icon
+              // Settings icon — navigasi ke halaman Pengaturan
               IconButton(
                 icon: const Icon(Icons.settings_outlined,
                     color: AppColors.textSecondary),
-                onPressed: () {},
+                tooltip: 'Pengaturan',
+                onPressed: () => _openSettings(context),
               ),
             ],
           ),
@@ -312,7 +368,8 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  // ── Stats bar ─────────────────────────────────────────────
+  // ── Stats bar ────────────────────────────────────────────
+  // Semua 0 — siap diganti dengan data nyata saat fitur tersedia.
 
   Widget _buildStats() {
     return FadeInUp(
@@ -325,30 +382,22 @@ class _ProfileTabState extends State<ProfileTab> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
-        child: Row(
+        child: const Row(
           children: [
-            _StatItem(value: '42', label: 'Film\nDitonton'),
-            _buildDivider(),
-            _StatItem(value: '18', label: 'Film\nTerdaftar'),
-            _buildDivider(),
-            _StatItem(value: '32', label: 'Reviews'),
-            _buildDivider(),
-            _StatItem(value: '27', label: 'Mengikuti'),
+            _StatItem(value: '0', label: 'Film\nDitonton'),
+            _Divider(),
+            _StatItem(value: '0', label: 'Watchlist'),
+            _Divider(),
+            _StatItem(value: '0', label: 'Reviews'),
+            _Divider(),
+            _StatItem(value: '0', label: 'Mengikuti'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDivider() {
-    return Container(
-      width: 1,
-      height: 32,
-      color: AppColors.border,
-    );
-  }
-
-  // ── Tab section ───────────────────────────────────────────
+  // ── Tab section ──────────────────────────────────────────
 
   Widget _buildTabSection(BuildContext context) {
     return DefaultTabController(
@@ -379,10 +428,22 @@ class _ProfileTabState extends State<ProfileTab> {
             height: 320,
             child: TabBarView(
               children: [
-                _buildWatchlistTab(),
-                _buildHistoryTab(),
+                _buildEmptyTab(
+                  icon: Icons.bookmark_border_rounded,
+                  message: 'Watchlist kamu masih kosong',
+                  sub: 'Tambahkan film yang ingin ditonton',
+                ),
+                _buildEmptyTab(
+                  icon: Icons.history_rounded,
+                  message: 'Belum ada riwayat tontonan',
+                  sub: 'Film yang sudah ditonton akan muncul di sini',
+                ),
                 _buildTasteProfileTab(),
-                _buildReviewsTab(),
+                _buildEmptyTab(
+                  icon: Icons.rate_review_outlined,
+                  message: 'Belum ada review',
+                  sub: 'Bagikan pendapatmu tentang film yang ditonton',
+                ),
               ],
             ),
           ),
@@ -391,31 +452,62 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _buildWatchlistTab() {
-    return const Center(
-      child: Text(
-        'Belum ada film di watchlist',
-        style: TextStyle(color: AppColors.textMuted),
+  Widget _buildEmptyTab({
+    required IconData icon,
+    required String message,
+    required String sub,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: AppColors.textMuted, size: 36),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            sub,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildHistoryTab() {
-    return const Center(
-      child: Text(
-        'Belum ada riwayat tontonan',
-        style: TextStyle(color: AppColors.textMuted),
-      ),
-    );
-  }
+  // ── Taste Profile tab ─────────────────────────────────────
+  // Menggunakan genre asli dari profile.favoriteGenreIds
 
   Widget _buildTasteProfileTab() {
-    // Genre taste donut-like visualization
-    final genres = [
-      {'label': 'Action', 'pct': 0.70, 'color': AppColors.accentRed},
-      {'label': 'Sci-Fi', 'pct': 0.20, 'color': const Color(0xFF0EA5E9)},
-      {'label': 'Drama', 'pct': 0.10, 'color': const Color(0xFF7C3AED)},
-    ];
+    final genreIds = _profile?.favoriteGenreIds ?? [];
+
+    if (genreIds.isEmpty) {
+      return _buildEmptyTab(
+        icon: Icons.movie_filter_outlined,
+        message: 'Belum ada data selera',
+        sub: 'Pilih genre favorit di pengaturan profil',
+      );
+    }
+
+    // Bagi rata persentase ke setiap genre yang dipilih
+    final total = genreIds.length;
+    final genres = genreIds.asMap().entries.map((e) {
+      final idx = e.key;
+      final id = e.value;
+      final name = _kGenreNames[id] ?? 'Genre $id';
+      final pct = 1.0 / total;
+      final color = _kGenreColors[idx % _kGenreColors.length];
+      return {'label': name, 'pct': pct, 'color': color};
+    }).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -430,9 +522,9 @@ class _ProfileTabState extends State<ProfileTab> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           const Text(
-            'Ini adalah analisis selera kamu berdasarkan\nfilm yang telah kamu tonton.',
+            'Genre favorit kamu berdasarkan pilihan saat setup.',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,
@@ -441,44 +533,45 @@ class _ProfileTabState extends State<ProfileTab> {
           ),
           const SizedBox(height: 20),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Donut chart placeholder
               SizedBox(
                 width: 100,
                 height: 100,
                 child: CustomPaint(painter: _DonutChartPainter(genres)),
               ),
               const SizedBox(width: 24),
-              // Legend
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: genres.map((g) {
-                  final color = g['color'] as Color;
-                  final pct = ((g['pct'] as double) * 100).toInt();
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: genres.map((g) {
+                    final color = g['color'] as Color;
+                    final pct = ((g['pct'] as double) * 100).round();
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$pct%  ${g['label']}',
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 13,
+                          const SizedBox(width: 8),
+                          Text(
+                            '$pct%  ${g['label']}',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
             ],
           ),
@@ -487,78 +580,8 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _buildReviewsTab() {
-    return const Center(
-      child: Text(
-        'Belum ada review',
-        style: TextStyle(color: AppColors.textMuted),
-      ),
-    );
-  }
-
-  // ── Menu / settings section ────────────────────────────────
-
-  Widget _buildMenuSection(BuildContext context, bool isGuest) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Pengaturan',
-            style: TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _MenuTile(
-            icon: Icons.notifications_outlined,
-            label: 'Notifikasi',
-            onTap: () {},
-          ),
-          _MenuTile(
-            icon: Icons.lock_outline_rounded,
-            label: 'Privasi',
-            onTap: () {},
-          ),
-          _MenuTile(
-            icon: Icons.help_outline_rounded,
-            label: 'Bantuan & FAQ',
-            onTap: () {},
-          ),
-          _MenuTile(
-            icon: Icons.info_outline_rounded,
-            label: 'Tentang AfterCredits',
-            onTap: () {},
-          ),
-          if (!isGuest) ...[
-            const SizedBox(height: 8),
-            const Divider(color: AppColors.border, thickness: 0.5),
-            const SizedBox(height: 8),
-            _MenuTile(
-              icon: Icons.logout_rounded,
-              label: 'Keluar',
-              labelColor: AppColors.accentRed,
-              onTap: () async {
-                await AuthService().signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const AuthScreen()),
-                  );
-
-                }
-              },
-            ),
-          ],
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
 }
+
 
 // ─────────────────────────────────────────────────────────
 // Stat item widget
@@ -600,56 +623,18 @@ class _StatItem extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────
-// Menu tile widget
+// Divider between stats
 // ─────────────────────────────────────────────────────────
 
-class _MenuTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? labelColor;
-  final VoidCallback onTap;
-
-  const _MenuTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.labelColor,
-  });
+class _Divider extends StatelessWidget {
+  const _Divider();
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: AppColors.darkTertiary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: labelColor ?? AppColors.textSecondary,
-        ),
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          color: labelColor ?? AppColors.textPrimary,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
-        color: AppColors.textMuted,
-        size: 18,
-      ),
-      onTap: onTap,
-    );
+    return Container(width: 1, height: 32, color: AppColors.border);
   }
 }
+
 
 // ─────────────────────────────────────────────────────────
 // Donut chart painter
@@ -666,10 +651,10 @@ class _DonutChartPainter extends CustomPainter {
     final radius = size.width / 2;
     final strokeWidth = radius * 0.38;
     final innerRadius = radius - strokeWidth;
-    var startAngle = -3.14159 / 2;
+    var startAngle = -pi / 2;
 
     for (final item in data) {
-      final sweep = (item['pct'] as double) * 2 * 3.14159;
+      final sweep = (item['pct'] as double) * 2 * pi;
       final paint = Paint()
         ..color = item['color'] as Color
         ..style = PaintingStyle.stroke
@@ -689,5 +674,5 @@ class _DonutChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
