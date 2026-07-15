@@ -27,6 +27,12 @@ dependencies:
 
   # HTTP
   http: ^1.2.2
+
+  # Supabase (Auth + Database + Storage)
+  supabase_flutter: ^2.8.0
+
+  # Image picker (for avatar upload)
+  image_picker: ^1.1.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

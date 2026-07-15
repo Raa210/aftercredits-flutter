@@ -1,35 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/supabase_service.dart';
+import 'core/services/user_profile_service.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/auth/login_screen.dart';
+import 'features/home/home_screen.dart';
+import 'features/setup/setup_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Force portrait orientation
+  // Lock portrait orientation
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Make status bar transparent
+  // Transparent status bar + themed nav bar
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
     systemNavigationBarColor: AppColors.darkSecondary,
   ));
 
+  // Initialize Supabase before anything else
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey, // JWT key for auth
+    // publishableKey: SupabaseConfig.publishableKey, // uncomment if needed
+  );
+
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
-  runApp(AfterCreditsApp(showOnboarding: !onboardingDone));
+  runApp(AfterCreditsApp(showAppIntro: !onboardingDone));
 }
 
 class AfterCreditsApp extends StatelessWidget {
-  final bool showOnboarding;
+  final bool showAppIntro;
 
-  const AfterCreditsApp({super.key, required this.showOnboarding});
+  const AfterCreditsApp({super.key, required this.showAppIntro});
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +50,16 @@ class AfterCreditsApp extends StatelessWidget {
       title: 'AfterCredits',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: _SplashRouter(showOnboarding: showOnboarding),
+      home: _SplashRouter(showAppIntro: showAppIntro),
     );
   }
 }
 
-/// Splash screen that routes to the correct first screen
+/// Animated splash screen that determines where to route the user.
 class _SplashRouter extends StatefulWidget {
-  final bool showOnboarding;
+  final bool showAppIntro;
 
-  const _SplashRouter({required this.showOnboarding});
+  const _SplashRouter({required this.showAppIntro});
 
   @override
   State<_SplashRouter> createState() => _SplashRouterState();
@@ -66,7 +79,9 @@ class _SplashRouterState extends State<_SplashRouter>
       duration: const Duration(milliseconds: 1200),
     );
     _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: const Interval(0, 0.6)),
+      CurvedAnimation(
+          parent: _animController,
+          curve: const Interval(0, 0.6)),
     );
     _scaleAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
       CurvedAnimation(
@@ -75,22 +90,52 @@ class _SplashRouterState extends State<_SplashRouter>
 
     _animController.forward();
 
-    // Navigate after splash
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, animation, __) => widget.showOnboarding
-                ? const OnboardingScreen()
-                : const LoginScreen(),
-            transitionsBuilder: (_, animation, __, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-        );
+    Future.delayed(const Duration(milliseconds: 2200), _route);
+  }
+
+  Future<void> _route() async {
+    if (!mounted) return;
+
+    final target = await _resolveTarget();
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, animation, __) => target,
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
+    );
+  }
+
+  /// Determines which screen to show after the splash.
+  ///
+  /// Priority:
+  /// 1. Show app intro slides if never seen.
+  /// 2. Auth screen if no Supabase session.
+  /// 3. Setup screen if session exists but profile is incomplete.
+  /// 4. Home screen if everything is good.
+  Future<Widget> _resolveTarget() async {
+    // Step 1 — first-time app intro
+    if (widget.showAppIntro) return const OnboardingScreen();
+
+    // Step 2 — check Supabase session
+    final session = supabase.auth.currentSession;
+    if (session == null) return const AuthScreen();
+
+    // Step 3 — session exists: check if user has completed setup
+    try {
+      final profile =
+          await UserProfileService().getProfile(session.user.id);
+      if (profile == null || !profile.onboardingComplete) {
+        return const SetupScreen();
       }
-    });
+      return const HomeScreen();
+    } catch (_) {
+      // On any error (network, etc.), fall back to auth
+      return const AuthScreen();
+    }
   }
 
   @override
@@ -109,10 +154,7 @@ class _SplashRouterState extends State<_SplashRouter>
           builder: (context, child) {
             return FadeTransition(
               opacity: _fadeAnim,
-              child: ScaleTransition(
-                scale: _scaleAnim,
-                child: child,
-              ),
+              child: ScaleTransition(scale: _scaleAnim, child: child),
             );
           },
           child: Column(

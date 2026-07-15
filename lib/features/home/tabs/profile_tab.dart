@@ -1,11 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/user_profile_service.dart';
+import '../../../models/user_profile_model.dart';
 import '../../auth/login_screen.dart';
 
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
+
+  @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  UserProfileModel? _profile;
+  bool _loadingProfile = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final user = AuthService().currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _loadingProfile = false);
+      return;
+    }
+    final profile = await UserProfileService().getProfile(user.id);
+    if (mounted) {
+      setState(() {
+        _profile = profile;
+        _loadingProfile = false;
+      });
+    }
+  }
+
+  // Helper to extract display name from Supabase User
+  String _displayName(User user) {
+    if (_profile != null && _profile!.username.isNotEmpty) {
+      return '@${_profile!.username}';
+    }
+    final meta = user.userMetadata;
+    return meta?['full_name'] as String? ??
+        meta?['name'] as String? ??
+        user.email?.split('@').first ??
+        'User';
+  }
+
+  // Helper to get avatar URL from profile or Google metadata
+  String? _avatarUrl(User user) {
+    if (_profile?.avatarUrl != null && _profile!.avatarUrl!.isNotEmpty) {
+      return _profile!.avatarUrl;
+    }
+    final meta = user.userMetadata;
+    return meta?['avatar_url'] as String? ?? meta?['picture'] as String?;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,14 +67,21 @@ class ProfileTab extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.darkPrimary,
-      body: CustomScrollView(
+      body: _loadingProfile && !isGuest
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.accentRed))
+          : CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           // Header
           SliverToBoxAdapter(
-            child: isGuest
-                ? _buildGuestHeader(context)
-                : _buildUserHeader(user.displayName, user.email, user.photoUrl),
+              child: isGuest
+                  ? _buildGuestHeader(context)
+                  : _buildUserHeader(
+                      _displayName(user!),
+                      user.email,
+                      _avatarUrl(user),
+                    ),
           ),
 
           // Stats (only for logged in)
@@ -100,7 +160,7 @@ class ProfileTab extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -112,7 +172,7 @@ class ProfileTab extends StatelessWidget {
                 elevation: 0,
               ),
               child: const Text(
-                'Masuk dengan Google',
+                'Masuk / Daftar',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 15,
@@ -486,8 +546,9 @@ class ProfileTab extends StatelessWidget {
                 await AuthService().signOut();
                 if (context.mounted) {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
                   );
+
                 }
               },
             ),

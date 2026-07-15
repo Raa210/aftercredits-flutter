@@ -1,67 +1,95 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/user_profile_service.dart';
 import '../home/home_screen.dart';
+import '../setup/setup_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+// Backward-compatibility alias so existing imports of `LoginScreen` still work.
+typedef LoginScreen = AuthScreen;
+
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  final _authService = AuthService();
+  final _auth = AuthService();
+  final _profileService = UserProfileService();
 
-  // Background poster for cinematic feel
-  final String _backdropUrl =
+  static const String _backdropUrl =
       'https://image.tmdb.org/t/p/original/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg';
 
-  Future<void> _signInWithGoogle() async {
+  // ─── Navigation helpers ───────────────────────────────────
+
+  /// After successful Google auth, check profile and route accordingly.
+  Future<void> _navigateAfterAuth(String userId) async {
+    final profile = await _profileService.getProfile(userId);
+    if (!mounted) return;
+
+    final destination = (profile == null || !profile.onboardingComplete)
+        ? const SetupScreen()
+        : const HomeScreen();
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, animation, __) => destination,
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
+  void _continueAsGuest() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, animation, __) => const HomeScreen(),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
+    );
+  }
+
+  // ─── Auth handler ─────────────────────────────────────────
+
+  Future<void> _handleGoogleSignIn() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
-      final user = await _authService.signInWithGoogle();
-      if (user != null && mounted) {
-        _navigateToHome();
-      } else if (mounted) {
+      final res = await _auth.signInWithGoogle();
+      
+      // Jika res null, itu artinya aplikasi sedang berjalan di Web dan melakukan 
+      // redirect halaman, atau tidak ada user. Biarkan redirect berjalan.
+      if (res != null && res.user != null && mounted) {
+        await _navigateAfterAuth(res.user!.id);
+      } else if (!kIsWeb && mounted) {
         setState(() {
-          _errorMessage = 'Sign in dibatalkan. Coba lagi.';
+          _errorMessage = 'Google sign-in dibatalkan atau gagal.';
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Terjadi kesalahan. Pastikan koneksi internet aktif.';
+          _errorMessage = e.toString().replaceAll('Exception:', '').trim();
           _isLoading = false;
         });
       }
     }
   }
 
-  void _continueAsGuest() {
-    _navigateToHome();
-  }
-
-  void _navigateToHome() {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (_, animation, __) => const HomeScreen(),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 600),
-      ),
-    );
-  }
+  // ─── Build ────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -76,13 +104,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Image.network(
               _backdropUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: AppColors.darkPrimary,
-              ),
+              errorBuilder: (_, __, ___) =>
+                  Container(color: AppColors.darkPrimary),
             ),
           ),
-
-          // Dark gradient overlays
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -100,8 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
-          // Red radial glow
+          // Red glow
           Positioned(
             top: size.height * 0.3,
             left: -80,
@@ -114,7 +138,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppColors.accentRed.withOpacity(0.18),
                     Colors.transparent,
                   ],
-                  radius: 0.8,
                 ),
               ),
             ),
@@ -122,238 +145,136 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // ── Content ──────────────────────────────────────
           SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(height: size.height * 0.12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(height: size.height * 0.12),
 
-                          // Logo & Branding
-                          FadeInDown(
-                            duration: const Duration(milliseconds: 700),
-                            child: Column(
-                              children: [
-                                // Logo icon
-                                Container(
-                                  width: 72,
-                                  height: 72,
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        AppColors.accentRed,
-                                        AppColors.accentOrange,
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.accentRed
-                                            .withOpacity(0.45),
-                                        blurRadius: 32,
-                                        offset: const Offset(0, 12),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.movie_creation_rounded,
-                                    color: Colors.white,
-                                    size: 36,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
+                  // Branding
+                  FadeInDown(
+                    duration: const Duration(milliseconds: 700),
+                    child: _buildBranding(),
+                  ),
 
-                                // App name
-                                const Text(
-                                  'AfterCredits',
-                                  style: TextStyle(
-                                    fontSize: 34,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Your Cinematic Universe',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.textSecondary,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                  const Spacer(),
 
-                          SizedBox(height: size.height * 0.07),
+                  // Auth card
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 600),
+                    child: _buildAuthCard(),
+                  ),
 
-                          // Feature chips
-                          FadeInUp(
-                            delay: const Duration(milliseconds: 200),
-                            duration: const Duration(milliseconds: 600),
-                            child: Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              alignment: WrapAlignment.center,
-                              children: const [
-                                _FeatureChip(
-                                  icon: Icons.auto_awesome_rounded,
-                                  label: 'Discover',
-                                ),
-                                _FeatureChip(
-                                  icon: Icons.forum_rounded,
-                                  label: 'Community',
-                                ),
-                                _FeatureChip(
-                                  icon: Icons.star_rounded,
-                                  label: 'Reviews',
-                                ),
-                                _FeatureChip(
-                                  icon: Icons.pie_chart_rounded,
-                                  label: 'Taste Profile',
-                                ),
-                              ],
-                            ),
-                          ),
+                  const SizedBox(height: 20),
 
-                          SizedBox(height: size.height * 0.06),
-
-                          // Sign-in card
-                          FadeInUp(
-                            delay: const Duration(milliseconds: 350),
-                            duration: const Duration(milliseconds: 600),
-                            child: _SignInCard(
-                              isLoading: _isLoading,
-                              errorMessage: _errorMessage,
-                              onGoogleSignIn: _signInWithGoogle,
-                              onGuestContinue: _continueAsGuest,
-                            ),
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Privacy notice
-                          FadeInUp(
-                            delay: const Duration(milliseconds: 500),
-                            duration: const Duration(milliseconds: 600),
-                            child: const Text(
-                              'Dengan masuk, kamu menyetujui Syarat & Ketentuan\ndan Kebijakan Privasi kami.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 11,
-                                height: 1.6,
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 32),
-                        ],
+                  // Guest option
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 400),
+                    child: TextButton(
+                      onPressed: _isLoading ? null : _continueAsGuest,
+                      child: const Text(
+                        'Lanjutkan sebagai Tamu',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────
-// Feature chip
-// ─────────────────────────────────────────────────────────
+  // ─── Sub-widgets ──────────────────────────────────────────
 
-class _FeatureChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _FeatureChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+  Widget _buildBranding() {
+    return Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.accentRed, AppColors.accentOrange],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accentRed.withOpacity(0.45),
+                blurRadius: 40,
+                offset: const Offset(0, 16),
+              ),
+            ],
           ),
-        ],
-      ),
+          child: const Icon(
+            Icons.movie_creation_rounded,
+            color: Colors.white,
+            size: 40,
+          ),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'AfterCredits',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Your Cinematic Universe',
+          style: TextStyle(
+            fontSize: 15,
+            color: AppColors.textSecondary,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────
-// Sign-in card
-// ─────────────────────────────────────────────────────────
-
-class _SignInCard extends StatelessWidget {
-  final bool isLoading;
-  final String? errorMessage;
-  final VoidCallback onGoogleSignIn;
-  final VoidCallback onGuestContinue;
-
-  const _SignInCard({
-    required this.isLoading,
-    required this.errorMessage,
-    required this.onGoogleSignIn,
-    required this.onGuestContinue,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildAuthCard() {
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: AppColors.darkSecondary.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.darkSecondary.withOpacity(0.90),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 40,
-            offset: const Offset(0, 16),
+            color: Colors.black.withOpacity(0.45),
+            blurRadius: 48,
+            offset: const Offset(0, 20),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Text(
-            'Masuk untuk memulai',
+            'Masuk ke AfterCredits',
             style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           const Text(
-            'Simpan film favorit, tulis review, dan\nbergabung dengan komunitas cinephile',
+            'Simpan watchlist, ikuti komunitas, dan\ntonton bersama teman-temanmu.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -362,153 +283,83 @@ class _SignInCard extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          // Error message
-          if (errorMessage != null) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.accentRed.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: AppColors.accentRed.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_rounded,
-                      color: AppColors.accentRed, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      errorMessage!,
-                      style: const TextStyle(
-                        color: AppColors.accentRed,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // Error banner
+          if (_errorMessage != null) ...[
+            _buildErrorBanner(_errorMessage!),
             const SizedBox(height: 16),
           ],
 
-          // Google Sign-in button
-          _GoogleSignInButton(
-            isLoading: isLoading,
-            onPressed: onGoogleSignIn,
+          // Google Sign-In button
+          _buildGoogleButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.accentRed.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.accentRed.withOpacity(0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.warning_rounded,
+                color: AppColors.accentRed, size: 16),
           ),
-
-          const SizedBox(height: 16),
-
-          // Divider
-          Row(
-            children: [
-              const Expanded(
-                child: Divider(color: AppColors.border, thickness: 0.5),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'atau',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              const Expanded(
-                child: Divider(color: AppColors.border, thickness: 0.5),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Guest button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton(
-              onPressed: isLoading ? null : onGuestContinue,
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(
-                    color: AppColors.border, width: 1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                foregroundColor: AppColors.textSecondary,
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.person_outline_rounded, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Lanjutkan sebagai Tamu',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: AppColors.accentRed, fontSize: 12),
             ),
           ),
         ],
       ),
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────
-// Google sign-in button
-// ─────────────────────────────────────────────────────────
-
-class _GoogleSignInButton extends StatelessWidget {
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  const _GoogleSignInButton({
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildGoogleButton() {
     return SizedBox(
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
+        onPressed: _isLoading ? null : _handleGoogleSignIn,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: const Color(0xFF1F1F1F),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+              borderRadius: BorderRadius.circular(16)),
           disabledBackgroundColor: Colors.white.withOpacity(0.6),
         ),
-        child: isLoading
+        child: _isLoading
             ? const SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.accentRed),
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1F1F1F)),
                 ),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Google logo
-                  _GoogleLogo(),
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CustomPaint(painter: _GoogleLogoPainter()),
+                  ),
                   const SizedBox(width: 12),
                   const Text(
-                    'Masuk dengan Google',
+                    'Lanjutkan dengan Google',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -522,16 +373,9 @@ class _GoogleSignInButton extends StatelessWidget {
   }
 }
 
-class _GoogleLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
-    );
-  }
-}
+// ─────────────────────────────────────────────────────────
+// Google 'G' logo painter
+// ─────────────────────────────────────────────────────────
 
 class _GoogleLogoPainter extends CustomPainter {
   @override
@@ -540,15 +384,14 @@ class _GoogleLogoPainter extends CustomPainter {
     final double cy = size.height / 2;
     final double r = size.width / 2;
 
-    // Clip to circle
-    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r)));
+    canvas.clipPath(
+        Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r)));
 
-    // Draw Google 'G' segments (simplified colored arcs)
     final colors = [
-      const Color(0xFF4285F4), // blue
-      const Color(0xFF34A853), // green
-      const Color(0xFFFBBC05), // yellow
-      const Color(0xFFEA4335), // red
+      const Color(0xFF4285F4),
+      const Color(0xFF34A853),
+      const Color(0xFFFBBC05),
+      const Color(0xFFEA4335),
     ];
     final starts = [-0.52, 0.52, 1.05, -1.60];
     final sweeps = [1.04, 0.53, 0.55, 1.08];
@@ -566,8 +409,6 @@ class _GoogleLogoPainter extends CustomPainter {
         paint,
       );
     }
-
-    // White center gap to simulate the 'G' cutout
     canvas.drawRect(
       Rect.fromLTWH(cx - 0.5, cy - r * 0.4, r, r * 0.4),
       Paint()..color = Colors.white,
