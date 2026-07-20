@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aftercredits/models/movie_review_model.dart';
+import 'package:aftercredits/core/services/auth_service.dart';
 
 /// Service untuk menyimpan dan membaca data interaksi user terhadap film:
 /// - Watched history
@@ -14,14 +15,48 @@ class MovieUserDataService {
   MovieUserDataService._internal();
 
   // ─── Keys ────────────────────────────────────────────────
-  static const _keyWatched = 'user_watched_ids';
-  static const _keyWatchlist = 'user_watchlist_ids';
-  static const _keyReviews = 'user_movie_reviews';
+  String get _userIdSuffix => AuthService().currentUser?.id ?? 'guest';
+
+  String get _keyWatched => 'user_watched_ids_$_userIdSuffix';
+  String get _keyWatchlist => 'user_watchlist_ids_$_userIdSuffix';
+  String get _keyReviews => 'user_movie_reviews_$_userIdSuffix';
+  String get _keyWatchedGenreMap => 'user_watched_genre_map_$_userIdSuffix';
+
+  // ─── Migration ───────────────────────────────────────────
+  Future<void> _migrateLegacyDataIfNeeded(SharedPreferences prefs) async {
+    if (_userIdSuffix == 'guest') return;
+
+    if (!prefs.containsKey(_keyWatched) && prefs.containsKey('user_watched_ids')) {
+      final oldList = prefs.getStringList('user_watched_ids');
+      if (oldList != null && oldList.isNotEmpty) {
+        await prefs.setStringList(_keyWatched, oldList);
+      }
+    }
+    if (!prefs.containsKey(_keyWatchlist) && prefs.containsKey('user_watchlist_ids')) {
+      final oldList = prefs.getStringList('user_watchlist_ids');
+      if (oldList != null && oldList.isNotEmpty) {
+        await prefs.setStringList(_keyWatchlist, oldList);
+      }
+    }
+    if (!prefs.containsKey(_keyReviews) && prefs.containsKey('user_movie_reviews')) {
+      final oldString = prefs.getString('user_movie_reviews');
+      if (oldString != null && oldString.isNotEmpty && oldString != '{}') {
+        await prefs.setString(_keyReviews, oldString);
+      }
+    }
+    if (!prefs.containsKey(_keyWatchedGenreMap) && prefs.containsKey('user_watched_genre_map')) {
+      final oldString = prefs.getString('user_watched_genre_map');
+      if (oldString != null && oldString.isNotEmpty && oldString != '{}') {
+        await prefs.setString(_keyWatchedGenreMap, oldString);
+      }
+    }
+  }
 
   // ─── Watched ─────────────────────────────────────────────
 
   Future<List<int>> getWatchedIds() async {
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyDataIfNeeded(prefs);
     final raw = prefs.getStringList(_keyWatched) ?? [];
     return raw.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
   }
@@ -57,6 +92,7 @@ class MovieUserDataService {
 
   Future<List<int>> getWatchlistIds() async {
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyDataIfNeeded(prefs);
     final raw = prefs.getStringList(_keyWatchlist) ?? [];
     return raw.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
   }
@@ -92,6 +128,7 @@ class MovieUserDataService {
 
   Future<Map<int, MovieReview>> getAllReviews() async {
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyDataIfNeeded(prefs);
     final raw = prefs.getString(_keyReviews);
     if (raw == null || raw.isEmpty) return {};
 
@@ -164,9 +201,6 @@ class MovieUserDataService {
 
   // ─── Movie Taste (genre dari watched history) ─────────────
 
-  /// Simpan genre IDs dari film yang sudah ditonton
-  static const _keyWatchedGenreMap = 'user_watched_genre_map';
-
   Future<void> saveMovieGenres(int movieId, List<int> genreIds) async {
     if (genreIds.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
@@ -184,6 +218,7 @@ class MovieUserDataService {
   /// Ambil genre count dari watched history (untuk Movie Taste Profile)
   Future<Map<int, int>> getWatchedGenreCounts() async {
     final prefs = await SharedPreferences.getInstance();
+    await _migrateLegacyDataIfNeeded(prefs);
     final raw = prefs.getString(_keyWatchedGenreMap);
     if (raw == null || raw.isEmpty) return {};
 

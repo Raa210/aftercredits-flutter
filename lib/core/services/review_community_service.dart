@@ -9,8 +9,10 @@ class ReviewCommunityService {
   factory ReviewCommunityService() => _instance;
   ReviewCommunityService._internal();
 
-  static const _keyLikedReviews = 'user_liked_reviews';
-  static const _keyReviewComments = 'user_review_comments';
+  String get _userIdSuffix => AuthService().currentUser?.id ?? 'guest';
+
+  String get _keyLikedReviews => 'user_liked_reviews_$_userIdSuffix';
+  String get _keyReviewComments => 'user_review_comments_$_userIdSuffix';
 
   // ─── Predefined Mock Reviews ───────────────────────────────
   final List<CommunityReviewModel> _mockReviews = [

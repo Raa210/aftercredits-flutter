@@ -201,22 +201,6 @@ class _DiscoverTabState extends State<DiscoverTab> {
                 ),
               )
             else ...[
-              // 1. Review Populer Minggu Ini
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
-                  child: _SectionHeader(
-                    title: 'Review Populer Minggu Ini',
-                    icon: Icons.star_rounded,
-                    iconColor: AppColors.star,
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: _genreLoading
-                    ? _buildLoadingBox()
-                    : _buildReviewRow(_popularReviews),
-              ),
 
               // 2. Film Populer Minggu Ini
               SliverToBoxAdapter(
@@ -252,22 +236,6 @@ class _DiscoverTabState extends State<DiscoverTab> {
                     : _buildMoviesRow(_nowPlayingMovies, accentColor: const Color(0xFF3B82F6)),
               ),
 
-              // 4. Aktivitas Teman / Following
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
-                  child: _SectionHeader(
-                    title: 'Aktivitas Teman',
-                    icon: Icons.people_alt_rounded,
-                    iconColor: const Color(0xFF10B981),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: _genreLoading
-                    ? _buildLoadingBox()
-                    : _buildFriendActivities(_friendActivities),
-              ),
 
               // 5. Hidden Gems
               SliverToBoxAdapter(
