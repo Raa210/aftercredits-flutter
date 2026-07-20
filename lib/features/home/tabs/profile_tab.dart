@@ -5,8 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
 import 'package:aftercredits/core/services/user_profile_service.dart';
+import 'package:aftercredits/core/services/follow_service.dart';
+import 'package:aftercredits/core/services/community_service.dart';
 import 'package:aftercredits/models/user_profile_model.dart';
 import 'package:aftercredits/features/auth/login_screen.dart';
+import 'community/community_colors.dart';
+import 'community/thread_detail_screen.dart';
 import 'settings_screen.dart';
 
 // ─── Reverse map: genre ID → nama ────────────────────────
@@ -43,6 +47,9 @@ class ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<ProfileTab> {
   UserProfileModel? _profile;
   bool _loadingProfile = true;
+  int _followersCount = 0;
+  int _followingCount = 0;
+  List<Map<String, dynamic>> _userThreads = [];
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -63,10 +70,19 @@ class _ProfileTabState extends State<ProfileTab> {
       if (mounted) setState(() => _loadingProfile = false);
       return;
     }
-    final profile = await UserProfileService().getProfile(user.id);
+    final results = await Future.wait([
+      UserProfileService().getProfile(user.id),
+      FollowService().getFollowCounts(user.id),
+      CommunityService().getThreadsByUser(user.id),
+    ]);
+
     if (mounted) {
       setState(() {
-        _profile = profile;
+        _profile = results[0] as UserProfileModel?;
+        final counts = results[1] as ({int followers, int following});
+        _followersCount = counts.followers;
+        _followingCount = counts.following;
+        _userThreads = results[2] as List<Map<String, dynamic>>;
         _loadingProfile = false;
       });
     }
@@ -104,10 +120,11 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   // Buka halaman Pengaturan
-  void _openSettings(BuildContext context) {
-    Navigator.of(context).push(
+  void _openSettings(BuildContext context) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
+    if (mounted) _fetchProfile();
   }
 
   @override
@@ -242,12 +259,13 @@ class _ProfileTabState extends State<ProfileTab> {
     // Tanggal bergabung dari profil Supabase
     final joinedLabel =
         _profile != null ? _joinedLabel(_profile!.createdAt) : null;
+    final bioText = _profile?.bio;
 
     return Stack(
       children: [
         // Background gradient
         Container(
-          height: 220,
+          height: 240,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topRight,
@@ -266,7 +284,7 @@ class _ProfileTabState extends State<ProfileTab> {
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 colors: [
-                  AppColors.accentRed.withOpacity(0.2),
+                  AppColors.accentRed.withValues(alpha: 0.2),
                   Colors.transparent,
                 ],
               ),
@@ -277,6 +295,7 @@ class _ProfileTabState extends State<ProfileTab> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 60, 20, 24),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Avatar
               Container(
@@ -285,7 +304,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   border: Border.all(color: AppColors.accentRed, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accentRed.withOpacity(0.3),
+                      color: AppColors.accentRed.withValues(alpha: 0.3),
                       blurRadius: 16,
                     ),
                   ],
@@ -329,16 +348,27 @@ class _ProfileTabState extends State<ProfileTab> {
                           fontSize: 12,
                         ),
                       ),
-                    if (joinedLabel != null) ...[
+                    if (bioText != null && bioText.isNotEmpty) ...[
                       const SizedBox(height: 6),
+                      Text(
+                        bioText,
+                        style: TextStyle(
+                          color: AppColors.textPrimary.withValues(alpha: 0.85),
+                          fontSize: 13,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                    if (joinedLabel != null) ...[
+                      const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.accentRed.withOpacity(0.15),
+                          color: AppColors.accentRed.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color: AppColors.accentRed.withOpacity(0.3)),
+                              color: AppColors.accentRed.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           joinedLabel,
@@ -369,7 +399,6 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   // ── Stats bar ────────────────────────────────────────────
-  // Semua 0 — siap diganti dengan data nyata saat fitur tersedia.
 
   Widget _buildStats() {
     return FadeInUp(
@@ -382,15 +411,15 @@ class _ProfileTabState extends State<ProfileTab> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            _StatItem(value: '0', label: 'Film\nDitonton'),
-            _Divider(),
-            _StatItem(value: '0', label: 'Watchlist'),
-            _Divider(),
-            _StatItem(value: '0', label: 'Reviews'),
-            _Divider(),
-            _StatItem(value: '0', label: 'Mengikuti'),
+            _StatItem(value: '$_followersCount', label: 'Pengikut'),
+            const _Divider(),
+            _StatItem(value: '$_followingCount', label: 'Mengikuti'),
+            const _Divider(),
+            _StatItem(value: '${_userThreads.length}', label: 'Diskusi'),
+            const _Divider(),
+            const _StatItem(value: '0', label: 'Watchlist'),
           ],
         ),
       ),
@@ -418,25 +447,21 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
             dividerColor: AppColors.border,
             tabs: [
+              Tab(text: 'Diskusi'),
               Tab(text: 'Watchlist'),
-              Tab(text: 'History'),
               Tab(text: 'Taste Profile'),
               Tab(text: 'Reviews'),
             ],
           ),
           SizedBox(
-            height: 320,
+            height: 380,
             child: TabBarView(
               children: [
+                _buildDiskusiTab(),
                 _buildEmptyTab(
                   icon: Icons.bookmark_border_rounded,
                   message: 'Watchlist kamu masih kosong',
                   sub: 'Tambahkan film yang ingin ditonton',
-                ),
-                _buildEmptyTab(
-                  icon: Icons.history_rounded,
-                  message: 'Belum ada riwayat tontonan',
-                  sub: 'Film yang sudah ditonton akan muncul di sini',
                 ),
                 _buildTasteProfileTab(),
                 _buildEmptyTab(
@@ -448,6 +473,106 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDiskusiTab() {
+    if (_userThreads.isEmpty) {
+      return _buildEmptyTab(
+        icon: Icons.chat_bubble_outline_rounded,
+        message: 'Belum ada diskusi',
+        sub: 'Diskusi yang kamu buat akan muncul di sini',
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      itemCount: _userThreads.length,
+      itemBuilder: (context, index) => _buildThreadCard(_userThreads[index]),
+    );
+  }
+
+  Widget _buildThreadCard(Map<String, dynamic> thread) {
+    final tagColor = Color(thread['tagColor'] as int? ?? 0xFFE50914);
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ThreadDetailScreen(thread: thread),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: CommunityColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: CommunityColors.divider.withValues(alpha: 0.5),
+            width: 0.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: tagColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                thread['tag'] as String? ?? '',
+                style: TextStyle(
+                  color: tagColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              thread['title'] as String? ?? '',
+              style: const TextStyle(
+                color: CommunityColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.arrow_upward_rounded,
+                    size: 12, color: CommunityColors.textMuted),
+                const SizedBox(width: 4),
+                Text(
+                  '${thread['likes']}',
+                  style: const TextStyle(
+                      color: CommunityColors.textMuted, fontSize: 11),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.chat_bubble_outline_rounded,
+                    size: 12, color: CommunityColors.textMuted),
+                const SizedBox(width: 4),
+                Text(
+                  '${thread['comments']}',
+                  style: const TextStyle(
+                      color: CommunityColors.textMuted, fontSize: 11),
+                ),
+                const Spacer(),
+                Text(
+                  thread['time'] as String? ?? '',
+                  style: const TextStyle(
+                      color: CommunityColors.textMuted, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

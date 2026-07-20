@@ -1,3 +1,4 @@
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
@@ -7,6 +8,28 @@ import 'package:aftercredits/core/services/community_service.dart';
 import 'package:aftercredits/models/user_profile_model.dart';
 import 'community_colors.dart';
 import 'thread_detail_screen.dart';
+
+const Map<int, String> _kGenreNames = {
+  28: 'Aksi',
+  18: 'Drama',
+  878: 'Sci-Fi',
+  35: 'Komedi',
+  53: 'Thriller',
+  27: 'Horor',
+  10749: 'Romansa',
+  16: 'Animasi',
+  99: 'Dokumenter',
+  80: 'Kriminal',
+};
+
+const List<Color> _kGenreColors = [
+  AppColors.accentRed,
+  Color(0xFF0EA5E9),
+  Color(0xFF7C3AED),
+  Color(0xFFF59E0B),
+  Color(0xFF10B981),
+  Color(0xFFEC4899),
+];
 
 /// Layar untuk melihat profil pengguna lain dari komunitas.
 /// Menampilkan info profil, jumlah followers/following, dan tombol follow/unfollow.
@@ -142,7 +165,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         slivers: [
           // ─── App Bar + Header ─────────────────────────────
           SliverAppBar(
-            expandedHeight: 220,
+            expandedHeight: 240,
             pinned: true,
             backgroundColor: AppColors.darkPrimary,
             leading: IconButton(
@@ -158,64 +181,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           // ─── Stats Row ────────────────────────────────────
           SliverToBoxAdapter(child: _buildStatsRow()),
 
-          // ─── Threads Section ──────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-              child: Text(
-                'Diskusi',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
+          // ─── Tab Section ──────────────────────────────────
+          SliverToBoxAdapter(child: _buildTabSection(context)),
 
-          if (_loadingThreads)
-            const SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: CommunityColors.primary,
-                  ),
-                ),
-              ),
-            )
-          else if (_userThreads.isEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 40),
-                child: Column(
-                  children: [
-                    Icon(Icons.chat_bubble_outline_rounded,
-                        color: AppColors.textMuted, size: 36),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Belum ada diskusi',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildThreadCard(_userThreads[index]),
-                  childCount: _userThreads.length,
-                ),
-              ),
-            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -225,6 +194,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final avatarUrl = widget.avatarUrl ?? _profile?.avatarUrl;
     final username = '@${widget.username}';
     final joinedLabel = _profile != null ? _formatJoined(_profile!.createdAt) : null;
+    final bioText = _profile?.bio;
 
     return Container(
       decoration: const BoxDecoration(
@@ -259,7 +229,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Avatar
                   Container(
@@ -306,7 +276,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           username,
@@ -316,8 +285,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
+                        if (bioText != null && bioText.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            bioText,
+                            style: TextStyle(
+                              color: AppColors.textPrimary.withValues(alpha: 0.85),
+                              fontSize: 13,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
                         if (joinedLabel != null) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
@@ -427,10 +407,208 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           _StatChip(value: '$_followingCount', label: 'Mengikuti'),
           Container(width: 1, height: 28, color: AppColors.border),
           _StatChip(value: '${_userThreads.length}', label: 'Diskusi'),
+          Container(width: 1, height: 28, color: AppColors.border),
+          const _StatChip(value: '0', label: 'Watchlist'),
         ],
       ),
     );
   }
+
+  Widget _buildTabSection(BuildContext context) {
+    return DefaultTabController(
+      length: 4,
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: AppColors.textPrimary,
+            unselectedLabelColor: AppColors.textMuted,
+            indicatorColor: AppColors.accentRed,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+            dividerColor: AppColors.border,
+            tabs: [
+              Tab(text: 'Diskusi'),
+              Tab(text: 'Watchlist'),
+              Tab(text: 'Taste Profile'),
+              Tab(text: 'Reviews'),
+            ],
+          ),
+          SizedBox(
+            height: 380,
+            child: TabBarView(
+              children: [
+                _buildDiskusiTab(),
+                _buildEmptyTab(
+                  icon: Icons.bookmark_border_rounded,
+                  message: 'Watchlist masih kosong',
+                  sub: 'Belum ada film di watchlist',
+                ),
+                _buildTasteProfileTab(),
+                _buildEmptyTab(
+                  icon: Icons.rate_review_outlined,
+                  message: 'Belum ada review',
+                  sub: 'Belum ada review film dari pengguna ini',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiskusiTab() {
+    if (_loadingThreads) {
+      return const Center(
+        child: CircularProgressIndicator(color: CommunityColors.primary),
+      );
+    }
+    if (_userThreads.isEmpty) {
+      return _buildEmptyTab(
+        icon: Icons.chat_bubble_outline_rounded,
+        message: 'Belum ada diskusi',
+        sub: 'Diskusi yang dibuat akan muncul di sini',
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      itemCount: _userThreads.length,
+      itemBuilder: (context, index) => _buildThreadCard(_userThreads[index]),
+    );
+  }
+
+  Widget _buildTasteProfileTab() {
+    final genreIds = _profile?.favoriteGenreIds ?? [];
+
+    if (genreIds.isEmpty) {
+      return _buildEmptyTab(
+        icon: Icons.movie_filter_outlined,
+        message: 'Belum ada data selera',
+        sub: 'Pengguna belum memilih genre favorit',
+      );
+    }
+
+    final total = genreIds.length;
+    final genres = genreIds.asMap().entries.map((e) {
+      final idx = e.key;
+      final id = e.value;
+      final name = _kGenreNames[id] ?? 'Genre $id';
+      final pct = 1.0 / total;
+      final color = _kGenreColors[idx % _kGenreColors.length];
+      return {'label': name, 'pct': pct, 'color': color};
+    }).toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Movie Taste Profile',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Genre favorit berdasarkan pilihan saat setup.',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 100,
+                height: 100,
+                child: CustomPaint(painter: _DonutChartPainter(genres)),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: genres.map((g) {
+                    final color = g['color'] as Color;
+                    final pct = ((g['pct'] as double) * 100).round();
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$pct%  ${g['label']}',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyTab({
+    required IconData icon,
+    required String message,
+    required String sub,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: AppColors.textMuted, size: 36),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            sub,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildThreadCard(Map<String, dynamic> thread) {
     final tagColor = Color(thread['tagColor'] as int? ?? 0xFFE50914);
@@ -556,3 +734,41 @@ class _StatChip extends StatelessWidget {
     );
   }
 }
+
+class _DonutChartPainter extends CustomPainter {
+  final List<Map<String, dynamic>> data;
+
+  _DonutChartPainter(this.data);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    final strokeWidth = radius * 0.38;
+    final innerRadius = radius - strokeWidth;
+    var startAngle = -pi / 2;
+
+    for (final item in data) {
+      final sweep = (item['pct'] as double) * 2 * pi;
+      final paint = Paint()
+        ..color = item['color'] as Color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.butt;
+
+      canvas.drawArc(
+        Rect.fromCircle(
+            center: center, radius: innerRadius + strokeWidth / 2),
+        startAngle,
+        sweep,
+        false,
+        paint,
+      );
+      startAngle += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+

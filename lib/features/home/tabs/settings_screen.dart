@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
 import 'package:aftercredits/features/auth/login_screen.dart';
+import 'edit_profile_screen.dart';
 
 /// Halaman Pengaturan — dibuka dari tombol ⚙️ di header profil.
 class SettingsScreen extends StatelessWidget {
@@ -39,15 +40,22 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
-          // ── Akun ──────────────────────────────────────────
-          _SectionHeader(label: 'AKUN'),
-          _SettingsTile(
-            icon: Icons.person_outline_rounded,
-            iconColor: const Color(0xFF0EA5E9),
-            label: 'Edit Profil',
-            subtitle: 'Ubah username dan foto profil',
-            onTap: () => _showComingSoon(context, 'Edit Profil'),
-          ),
+          _SectionHeader(label: 'AKUN & PREFERENSI'),
+          if (!isGuest)
+            _SettingsTile(
+              icon: Icons.person_outline_rounded,
+              iconColor: const Color(0xFF0EA5E9),
+              label: 'Edit Profil',
+              subtitle: 'Ubah username, bio, dan foto profil',
+              onTap: () async {
+                final updated = await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                );
+                if (updated == true && context.mounted) {
+                  // Reload or refresh if needed
+                }
+              },
+            ),
           _SettingsTile(
             icon: Icons.bookmark_border_rounded,
             iconColor: const Color(0xFF7C3AED),
@@ -55,70 +63,10 @@ class SettingsScreen extends StatelessWidget {
             subtitle: 'Kelola daftar film yang ingin ditonton',
             onTap: () => _showComingSoon(context, 'Watchlist'),
           ),
-          _SettingsTile(
-            icon: Icons.movie_filter_outlined,
-            iconColor: const Color(0xFFF59E0B),
-            label: 'Selera Film',
-            subtitle: 'Perbarui genre dan film favorit kamu',
-            onTap: () => _showComingSoon(context, 'Selera Film'),
-          ),
 
           const SizedBox(height: 24),
 
-          // ── Preferensi ────────────────────────────────────
-          _SectionHeader(label: 'PREFERENSI'),
-          _SettingsTile(
-            icon: Icons.notifications_outlined,
-            iconColor: const Color(0xFF10B981),
-            label: 'Notifikasi',
-            subtitle: 'Atur notifikasi film & komunitas',
-            onTap: () => _showComingSoon(context, 'Notifikasi'),
-          ),
-          _SettingsTile(
-            icon: Icons.palette_outlined,
-            iconColor: const Color(0xFFEC4899),
-            label: 'Tampilan',
-            subtitle: 'Tema dan preferensi tampilan',
-            onTap: () => _showComingSoon(context, 'Tampilan'),
-          ),
-          _SettingsTile(
-            icon: Icons.language_outlined,
-            iconColor: const Color(0xFF0EA5E9),
-            label: 'Bahasa',
-            subtitle: 'Bahasa antarmuka aplikasi',
-            onTap: () => _showComingSoon(context, 'Bahasa'),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Privasi & Keamanan ────────────────────────────
-          _SectionHeader(label: 'PRIVASI & KEAMANAN'),
-          _SettingsTile(
-            icon: Icons.lock_outline_rounded,
-            iconColor: AppColors.accentRed,
-            label: 'Privasi',
-            subtitle: 'Kontrol visibilitas profil kamu',
-            onTap: () => _showComingSoon(context, 'Privasi'),
-          ),
-          _SettingsTile(
-            icon: Icons.shield_outlined,
-            iconColor: const Color(0xFF7C3AED),
-            label: 'Keamanan',
-            subtitle: 'Kelola keamanan akun',
-            onTap: () => _showComingSoon(context, 'Keamanan'),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Lainnya ───────────────────────────────────────
-          _SectionHeader(label: 'LAINNYA'),
-          _SettingsTile(
-            icon: Icons.help_outline_rounded,
-            iconColor: const Color(0xFFF59E0B),
-            label: 'Bantuan & FAQ',
-            subtitle: 'Pertanyaan umum dan dukungan',
-            onTap: () => _showComingSoon(context, 'Bantuan & FAQ'),
-          ),
+          _SectionHeader(label: 'TENTANG APLIKASI'),
           _SettingsTile(
             icon: Icons.info_outline_rounded,
             iconColor: const Color(0xFF0EA5E9),
@@ -126,15 +74,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: 'Versi 1.0.0 · Built with ❤️',
             onTap: () => _showAboutDialog(context),
           ),
-          _SettingsTile(
-            icon: Icons.star_outline_rounded,
-            iconColor: AppColors.star,
-            label: 'Beri Rating Aplikasi',
-            subtitle: 'Bantu kami berkembang dengan rating kamu',
-            onTap: () => _showComingSoon(context, 'Rating'),
-          ),
 
-          // ── Keluar (hanya jika login) ──────────────────────
           if (!isGuest) ...[
             const SizedBox(height: 24),
             const Divider(color: AppColors.border, thickness: 0.5),
@@ -172,7 +112,7 @@ class SettingsScreen extends StatelessWidget {
                 Text(
                   'Versi 1.0.0',
                   style: TextStyle(
-                    color: AppColors.textMuted.withOpacity(0.6),
+                    color: AppColors.textMuted.withValues(alpha: 0.6),
                     fontSize: 11,
                   ),
                 ),
@@ -362,7 +302,7 @@ class _SettingsTile extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.15),
+            color: iconColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 19, color: iconColor),

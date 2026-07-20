@@ -54,7 +54,19 @@ class UserProfileService {
     required String extension,
   }) async {
     final safeExt = extension.toLowerCase() == 'jpg' ? 'jpeg' : extension.toLowerCase();
-    final path = '$userId/avatar.$safeExt';
+    
+    try {
+      // List existing files in the user's folder and delete them to prevent storage leak
+      final files = await supabase.storage.from('avatars').list(path: userId);
+      if (files.isNotEmpty) {
+        final filesToDelete = files.map((f) => '$userId/${f.name}').toList();
+        await supabase.storage.from('avatars').remove(filesToDelete);
+      }
+    } catch (_) {
+      // Ignore delete errors and proceed with upload
+    }
+
+    final path = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
 
     await supabase.storage.from('avatars').uploadBinary(
           path,
@@ -74,6 +86,7 @@ class UserProfileService {
   Future<void> saveProfile({
     required String userId,
     required String username,
+    String? bio,
     String? avatarUrl,
     required List<int> favoriteGenreIds,
     required List<int> favoriteMovieIds,
@@ -81,6 +94,7 @@ class UserProfileService {
     await supabase.from('profiles').upsert({
       'id': userId,
       'username': username.toLowerCase().trim(),
+      if (bio != null) 'bio': bio.trim(),
       'avatar_url': avatarUrl,
       'favorite_genre_ids': favoriteGenreIds,
       'favorite_movie_ids': favoriteMovieIds,
@@ -88,4 +102,23 @@ class UserProfileService {
       'created_at': DateTime.now().toIso8601String(),
     });
   }
+
+  /// Updates existing profile details (e.g. from Edit Profile screen).
+  Future<void> updateProfile({
+    required String userId,
+    required String username,
+    String? bio,
+    String? avatarUrl,
+  }) async {
+    final updateData = <String, dynamic>{
+      'username': username.toLowerCase().trim(),
+      'bio': bio?.trim() ?? '',
+    };
+    if (avatarUrl != null) {
+      updateData['avatar_url'] = avatarUrl;
+    }
+
+    await supabase.from('profiles').update(updateData).eq('id', userId);
+  }
 }
+
