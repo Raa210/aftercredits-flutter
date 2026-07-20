@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:animate_do/animate_do.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/tmdb_service.dart';
 import 'package:aftercredits/core/services/community_service.dart';
 import 'package:aftercredits/models/movie_model.dart';
-import 'package:aftercredits/shared/widgets/movie_card.dart';
 import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
 import 'package:aftercredits/features/home/tabs/community/user_profile_screen.dart';
 
@@ -24,20 +24,6 @@ class _SearchTabState extends State<SearchTab> {
   List<MovieModel> _searchResults = [];
   List<Map<String, dynamic>> _userResults = [];
   Timer? _debounce;
-
-  final List<Map<String, dynamic>> _trendingSearches = [
-    {'title': 'Inception', 'year': '2010', 'rating': 8.8, 'poster': 'https://image.tmdb.org/t/p/w185/ljsZTbVsrQSqNgWeRnEkekVgiOfH.jpg', 'id': 27205},
-    {'title': 'Interstellar', 'year': '2014', 'rating': 8.6, 'poster': 'https://image.tmdb.org/t/p/w185/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', 'id': 157336},
-    {'title': 'Parasite', 'year': '2019', 'rating': 8.5, 'poster': 'https://image.tmdb.org/t/p/w185/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg', 'id': 496243},
-    {'title': 'Dune: Part Two', 'year': '2024', 'rating': 8.0, 'poster': 'https://image.tmdb.org/t/p/w185/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg', 'id': 693134},
-    {'title': 'Oppenheimer', 'year': '2023', 'rating': 8.3, 'poster': 'https://image.tmdb.org/t/p/w185/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', 'id': 872585},
-    {'title': 'Blade Runner 2049', 'year': '2017', 'rating': 8.0, 'poster': 'https://image.tmdb.org/t/p/w185/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg', 'id': 335984},
-  ];
-
-  final List<String> _genres = [
-    'Action', 'Drama', 'Sci-Fi', 'Comedy', 'Thriller',
-    'Horror', 'Romance', 'Animation', 'Documentary', 'Crime',
-  ];
 
   @override
   void dispose() {
@@ -76,22 +62,6 @@ class _SearchTabState extends State<SearchTab> {
   }
 
   void _openDetail(BuildContext context, MovieModel movie) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
-    );
-  }
-
-  void _openDetailFromTrending(BuildContext context, Map<String, dynamic> item) {
-    // Buat MovieModel minimal dari data trending
-    final movie = MovieModel(
-      id: (item['id'] as int?) ?? 0,
-      title: item['title'] as String? ?? '',
-      posterPath: null, // akan dimuat ulang dari API di detail page
-      voteAverage: (item['rating'] as num?)?.toDouble() ?? 0.0,
-      voteCount: 0,
-      popularity: 0,
-      releaseDate: item['year'] as String?,
-    );
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
     );
@@ -140,13 +110,14 @@ class _SearchTabState extends State<SearchTab> {
                               fontSize: 14,
                             ),
                             decoration: const InputDecoration(
-                              hintText:
-                                  'Cari film, pengguna, aktor...',
+                              hintText: 'Cari film, pengguna, aktor...',
                               hintStyle: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 14,
                               ),
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
                               contentPadding:
                                   EdgeInsets.symmetric(vertical: 14),
                             ),
@@ -171,110 +142,29 @@ class _SearchTabState extends State<SearchTab> {
 
           // Content
           Expanded(
-            child: _hasQuery ? _buildResults(context) : _buildDiscover(context),
+            child: _hasQuery ? _buildResults(context) : _buildEmptyState(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDiscover(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+  Widget _buildEmptyState() {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Genre browse
-          const Text(
-            'Jelajahi Genre',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 40),
           const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 3.2,
-            ),
-            itemCount: _genres.length,
-            itemBuilder: (context, index) {
-              final colors = [
-                AppColors.accentRed,
-                const Color(0xFF7C3AED),
-                const Color(0xFF0EA5E9),
-                const Color(0xFF10B981),
-                const Color(0xFFF59E0B),
-                AppColors.accentOrange,
-                const Color(0xFFEC4899),
-                const Color(0xFF6366F1),
-                const Color(0xFF14B8A6),
-                const Color(0xFF8B5CF6),
-              ];
-              final color = colors[index % colors.length];
-              return GestureDetector(
-                onTap: () {},
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: color.withOpacity(0.3)),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _genres[index],
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 28),
-
-          // Trending films
           const Text(
-            'Sedang Trending',
+            'Ketik nama film atau username untuk mencari.',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              height: 1.5,
             ),
           ),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.65,
-            ),
-            itemCount: _trendingSearches.length,
-            itemBuilder: (context, index) {
-              final movie = _trendingSearches[index];
-              return MovieCard(
-                title: movie['title'] as String,
-                year: movie['year'] as String,
-                rating: (movie['rating'] as num).toDouble(),
-                posterUrl: movie['poster'] as String?,
-                onTap: () => _openDetailFromTrending(context, movie),
-              );
-            },
-          ),
-          const SizedBox(height: 32),
         ],
       ),
     );
