@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
@@ -69,36 +70,51 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNav() {
     return Container(
+      height: 120,
+      alignment: Alignment.bottomCenter,
       decoration: BoxDecoration(
-        color: AppColors.darkSecondary,
-        border: const Border(
-          top: BorderSide(color: AppColors.border, width: 0.5),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.darkPrimary.withValues(alpha: 0.0),
+            AppColors.darkPrimary.withValues(alpha: 0.45),
+            AppColors.darkPrimary.withValues(alpha: 0.95),
+          ],
+          stops: const [0.0, 0.55, 1.0],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
       ),
       child: SafeArea(
-        top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(
-              _navItems.length,
-              (index) => _NavBarItem(
-                item: _navItems[index],
-                isActive: index == _currentIndex,
-                onTap: () {
-                  if (index != _currentIndex) {
-                    HapticFeedback.selectionClick();
-                    setState(() => _currentIndex = index);
-                  }
-                },
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppColors.darkSecondary,
+              borderRadius: BorderRadius.circular(40),
+              border: Border.all(color: AppColors.border, width: 0.8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(
+                _navItems.length,
+                (index) => _NavBarItem(
+                  item: _navItems[index],
+                  isActive: index == _currentIndex,
+                  onTap: () {
+                    if (index != _currentIndex) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _currentIndex = index);
+                    }
+                  },
+                ),
               ),
             ),
           ),
@@ -144,41 +160,42 @@ class _NavBarItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: isActive
-            ? BoxDecoration(
-                color: AppColors.accentRed.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              )
-            : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSwitcher(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+            decoration: isActive
+                ? BoxDecoration(
+                    color: AppColors.accentRed.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(20),
+                  )
+                : const BoxDecoration(
+                    color: Colors.transparent,
+                  ),
+            child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 isActive ? item.activeIcon : item.icon,
                 key: ValueKey(isActive),
                 color: isActive ? AppColors.accentRed : AppColors.textMuted,
-                size: 24,
+                size: 22,
               ),
             ),
-            const SizedBox(height: 3),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                color: isActive ? AppColors.accentRed : AppColors.textMuted,
-                fontSize: 10,
-                fontWeight:
-                    isActive ? FontWeight.w700 : FontWeight.w400,
-              ),
-              child: Text(item.label),
+          ),
+          const SizedBox(height: 4),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              color: isActive ? AppColors.accentRed : AppColors.textMuted,
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
             ),
-          ],
-        ),
+            child: Text(item.label),
+          ),
+        ],
       ),
     );
   }

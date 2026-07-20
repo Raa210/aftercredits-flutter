@@ -66,6 +66,8 @@ class _ProfileTabState extends State<ProfileTab> {
 
   // Stats
   int _watchlistCount = 0;
+  int _watchedCount = 0;
+  int _reviewsCount = 0;
 
   @override
   void initState() {
@@ -106,9 +108,13 @@ class _ProfileTabState extends State<ProfileTab> {
 
   Future<void> _fetchStats() async {
     final watchlist = await _userData.getWatchlistCount();
+    final watched = await _userData.getWatchedCount();
+    final reviewsMap = await _userData.getAllReviews();
     if (mounted) {
       setState(() {
         _watchlistCount = watchlist;
+        _watchedCount = watched;
+        _reviewsCount = reviewsMap.length;
       });
     }
   }
@@ -304,13 +310,14 @@ class _ProfileTabState extends State<ProfileTab> {
     return Stack(
       children: [
         // Background gradient
-        Container(
-          height: 240,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-              colors: [Color(0xFF1A0A0A), AppColors.darkPrimary],
+        Positioned.fill(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [Color(0xFF1A0A0A), AppColors.darkPrimary],
+              ),
             ),
           ),
         ),
@@ -388,6 +395,16 @@ class _ProfileTabState extends State<ProfileTab> {
                           fontSize: 12,
                         ),
                       ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 4,
+                      children: [
+                        _buildInlineStat(_watchedCount, 'Ditonton'),
+                        _buildInlineStat(_followersCount, 'Pengikut'),
+                        _buildInlineStat(_followingCount, 'Mengikuti'),
+                      ],
+                    ),
                     if (bioText != null && bioText.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
@@ -438,30 +455,33 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _buildStats() {
-    return FadeInUp(
-      duration: const Duration(milliseconds: 500),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.darkSecondary,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border, width: 0.5),
+  Widget _buildInlineStat(int count, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$count',
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        child: Row(
-          children: [
-            _StatItem(value: '$_followersCount', label: 'Pengikut'),
-            const _StatDivider(),
-            _StatItem(value: '$_followingCount', label: 'Mengikuti'),
-            const _StatDivider(),
-            _StatItem(value: '${_userThreads.length}', label: 'Diskusi'),
-            const _StatDivider(),
-            _StatItem(value: '$_watchlistCount', label: 'Watchlist'),
-          ],
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
         ),
-      ),
+      ],
     );
+  }
+
+  Widget _buildStats() {
+    return const SizedBox.shrink();
   }
 
   // ── Tab section ──────────────────────────────────────────
@@ -472,7 +492,7 @@ class _ProfileTabState extends State<ProfileTab> {
       child: Column(
         children: [
           const SizedBox(height: 16),
-          const TabBar(
+          TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             labelColor: AppColors.textPrimary,
@@ -485,10 +505,10 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
             dividerColor: AppColors.border,
             tabs: [
-              Tab(text: 'Diskusi'),
-              Tab(text: 'Watchlist'),
+              Tab(text: 'Diskusi (${_userThreads.length})'),
+              Tab(text: 'Watchlist ($_watchlistCount)'),
               Tab(text: 'Taste Profile'),
-              Tab(text: 'Reviews'),
+              Tab(text: 'Reviews ($_reviewsCount)'),
             ],
           ),
           SizedBox(

@@ -55,6 +55,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _followLoading = false;
   int _followersCount = 0;
   int _followingCount = 0;
+  int _watchedCount = 0;
   List<Map<String, dynamic>> _userThreads = [];
   bool _loadingThreads = true;
 
@@ -79,7 +80,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Future<void> _fetchProfile() async {
     try {
       final profile = await UserProfileService().getProfile(widget.userId);
-      if (mounted) setState(() => _profile = profile);
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _watchedCount = profile?.favoriteMovieIds.length ?? 0;
+        });
+      }
     } catch (_) {}
   }
 
@@ -285,6 +291,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 14,
+                          runSpacing: 4,
+                          children: [
+                            _buildInlineStat(_watchedCount, 'Ditonton'),
+                            _buildInlineStat(_followersCount, 'Pengikut'),
+                            _buildInlineStat(_followingCount, 'Mengikuti'),
+                          ],
+                        ),
                         if (bioText != null && bioText.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
@@ -391,27 +407,33 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildStatsRow() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.darkSecondary,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          _StatChip(value: '$_followersCount', label: 'Pengikut'),
-          Container(width: 1, height: 28, color: AppColors.border),
-          _StatChip(value: '$_followingCount', label: 'Mengikuti'),
-          Container(width: 1, height: 28, color: AppColors.border),
-          _StatChip(value: '${_userThreads.length}', label: 'Diskusi'),
-          Container(width: 1, height: 28, color: AppColors.border),
-          const _StatChip(value: '0', label: 'Watchlist'),
-        ],
-      ),
+  Widget _buildInlineStat(int count, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$count',
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
     );
+  }
+
+  Widget _buildStatsRow() {
+    return const SizedBox.shrink();
   }
 
   Widget _buildTabSection(BuildContext context) {
@@ -420,7 +442,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       child: Column(
         children: [
           const SizedBox(height: 16),
-          const TabBar(
+          TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             labelColor: AppColors.textPrimary,
@@ -433,10 +455,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
             dividerColor: AppColors.border,
             tabs: [
-              Tab(text: 'Diskusi'),
-              Tab(text: 'Watchlist'),
-              Tab(text: 'Taste Profile'),
-              Tab(text: 'Reviews'),
+              Tab(text: 'Diskusi (${_userThreads.length})'),
+              const Tab(text: 'Watchlist (0)'),
+              const Tab(text: 'Taste Profile'),
+              const Tab(text: 'Reviews (0)'),
             ],
           ),
           SizedBox(
