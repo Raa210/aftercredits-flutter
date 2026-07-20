@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/core/services/tmdb_service.dart';
+import 'package:aftercredits/models/movie_model.dart';
 import 'package:aftercredits/shared/widgets/movie_card.dart';
+import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
 
 class SearchTab extends StatefulWidget {
   const SearchTab({super.key});
@@ -11,15 +15,20 @@ class SearchTab extends StatefulWidget {
 
 class _SearchTabState extends State<SearchTab> {
   final TextEditingController _controller = TextEditingController();
+  final TmdbService _tmdb = TmdbService();
+
   bool _hasQuery = false;
+  bool _searching = false;
+  List<MovieModel> _searchResults = [];
+  Timer? _debounce;
 
   final List<Map<String, dynamic>> _trendingSearches = [
-    {'title': 'Inception', 'year': '2010', 'rating': 8.8, 'poster': 'https://image.tmdb.org/t/p/w185/ljsZTbVsrQSqNgWeRnEkekVgiOfH.jpg'},
-    {'title': 'Interstellar', 'year': '2014', 'rating': 8.6, 'poster': 'https://image.tmdb.org/t/p/w185/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg'},
-    {'title': 'Parasite', 'year': '2019', 'rating': 8.5, 'poster': 'https://image.tmdb.org/t/p/w185/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg'},
-    {'title': 'Dune: Part Two', 'year': '2024', 'rating': 8.0, 'poster': 'https://image.tmdb.org/t/p/w185/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg'},
-    {'title': 'Oppenheimer', 'year': '2023', 'rating': 8.3, 'poster': 'https://image.tmdb.org/t/p/w185/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg'},
-    {'title': 'Blade Runner 2049', 'year': '2017', 'rating': 8.0, 'poster': 'https://image.tmdb.org/t/p/w185/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg'},
+    {'title': 'Inception', 'year': '2010', 'rating': 8.8, 'poster': 'https://image.tmdb.org/t/p/w185/ljsZTbVsrQSqNgWeRnEkekVgiOfH.jpg', 'id': 27205},
+    {'title': 'Interstellar', 'year': '2014', 'rating': 8.6, 'poster': 'https://image.tmdb.org/t/p/w185/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', 'id': 157336},
+    {'title': 'Parasite', 'year': '2019', 'rating': 8.5, 'poster': 'https://image.tmdb.org/t/p/w185/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg', 'id': 496243},
+    {'title': 'Dune: Part Two', 'year': '2024', 'rating': 8.0, 'poster': 'https://image.tmdb.org/t/p/w185/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg', 'id': 693134},
+    {'title': 'Oppenheimer', 'year': '2023', 'rating': 8.3, 'poster': 'https://image.tmdb.org/t/p/w185/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', 'id': 872585},
+    {'title': 'Blade Runner 2049', 'year': '2017', 'rating': 8.0, 'poster': 'https://image.tmdb.org/t/p/w185/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg', 'id': 335984},
   ];
 
   final List<String> _genres = [
@@ -30,7 +39,54 @@ class _SearchTabState extends State<SearchTab> {
   @override
   void dispose() {
     _controller.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    setState(() => _hasQuery = val.isNotEmpty);
+
+    _debounce?.cancel();
+    if (val.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searching = false;
+      });
+      return;
+    }
+
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      if (!mounted) return;
+      setState(() => _searching = true);
+      final results = await _tmdb.searchMovies(val);
+      if (!mounted) return;
+      setState(() {
+        _searchResults = results;
+        _searching = false;
+      });
+    });
+  }
+
+  void _openDetail(BuildContext context, MovieModel movie) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
+    );
+  }
+
+  void _openDetailFromTrending(BuildContext context, Map<String, dynamic> item) {
+    // Buat MovieModel minimal dari data trending
+    final movie = MovieModel(
+      id: (item['id'] as int?) ?? 0,
+      title: item['title'] as String? ?? '',
+      posterPath: null, // akan dimuat ulang dari API di detail page
+      voteAverage: (item['rating'] as num?)?.toDouble() ?? 0.0,
+      voteCount: 0,
+      popularity: 0,
+      releaseDate: item['year'] as String?,
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
+    );
   }
 
   @override
@@ -70,8 +126,7 @@ class _SearchTabState extends State<SearchTab> {
                           child: TextField(
                             controller: _controller,
                             autofocus: false,
-                            onChanged: (val) =>
-                                setState(() => _hasQuery = val.isNotEmpty),
+                            onChanged: _onSearchChanged,
                             style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 14,
@@ -95,7 +150,7 @@ class _SearchTabState extends State<SearchTab> {
                                 color: AppColors.textMuted, size: 18),
                             onPressed: () {
                               _controller.clear();
-                              setState(() => _hasQuery = false);
+                              _onSearchChanged('');
                             },
                           ),
                       ],
@@ -108,14 +163,14 @@ class _SearchTabState extends State<SearchTab> {
 
           // Content
           Expanded(
-            child: _hasQuery ? _buildResults() : _buildDiscover(),
+            child: _hasQuery ? _buildResults(context) : _buildDiscover(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDiscover() {
+  Widget _buildDiscover(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -207,7 +262,7 @@ class _SearchTabState extends State<SearchTab> {
                 year: movie['year'] as String,
                 rating: (movie['rating'] as num).toDouble(),
                 posterUrl: movie['poster'] as String?,
-                onTap: () {},
+                onTap: () => _openDetailFromTrending(context, movie),
               );
             },
           ),
@@ -217,39 +272,74 @@ class _SearchTabState extends State<SearchTab> {
     );
   }
 
-  Widget _buildResults() {
-    // Filtered list (mock)
+  Widget _buildResults(BuildContext context) {
+    if (_searching) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.accentRed),
+      );
+    }
+
+    if (_searchResults.isEmpty && _hasQuery) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off_rounded,
+                color: AppColors.textMuted, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              'Tidak ada hasil untuk\n"${_controller.text}"',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _trendingSearches.length,
+      itemCount: _searchResults.length,
       separatorBuilder: (_, __) => const Divider(
         color: AppColors.border,
         height: 1,
         thickness: 0.5,
       ),
       itemBuilder: (context, index) {
-        final movie = _trendingSearches[index];
+        final movie = _searchResults[index];
         return ListTile(
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
           leading: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              movie['poster'] as String,
-              width: 42,
-              height: 62,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 42,
-                height: 62,
-                color: AppColors.darkTertiary,
-                child: const Icon(Icons.movie_outlined,
-                    size: 20, color: AppColors.textMuted),
-              ),
-            ),
+            child: movie.posterUrl != null
+                ? Image.network(
+                    movie.posterUrl!,
+                    width: 42,
+                    height: 62,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 42,
+                      height: 62,
+                      color: AppColors.darkTertiary,
+                      child: const Icon(Icons.movie_outlined,
+                          size: 20, color: AppColors.textMuted),
+                    ),
+                  )
+                : Container(
+                    width: 42,
+                    height: 62,
+                    color: AppColors.darkTertiary,
+                    child: const Icon(Icons.movie_outlined,
+                        size: 20, color: AppColors.textMuted),
+                  ),
           ),
           title: Text(
-            movie['title'] as String,
+            movie.title,
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 14,
@@ -257,7 +347,7 @@ class _SearchTabState extends State<SearchTab> {
             ),
           ),
           subtitle: Text(
-            '${movie['year']} • ★ ${movie['rating']}',
+            '${movie.year}  •  ★ ${movie.ratingFormatted}',
             style: const TextStyle(
               color: AppColors.textMuted,
               fontSize: 12,
@@ -267,7 +357,7 @@ class _SearchTabState extends State<SearchTab> {
             Icons.chevron_right_rounded,
             color: AppColors.textMuted,
           ),
-          onTap: () {},
+          onTap: () => _openDetail(context, movie),
         );
       },
     );

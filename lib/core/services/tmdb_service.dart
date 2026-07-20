@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:aftercredits/core/constants/api_constants.dart';
 import 'package:aftercredits/models/movie_model.dart';
+import 'package:aftercredits/models/cast_model.dart';
 
 class TmdbService {
   static final TmdbService _instance = TmdbService._internal();
@@ -125,6 +126,86 @@ class TmdbService {
     );
     if (d == null) return null;
     return MovieModel.fromJson(d);
+  }
+
+  /// Mengembalikan raw map dengan credits dan videos untuk detail page.
+  Future<Map<String, dynamic>?> getMovieDetailsRaw(int id) async {
+    final data = await _get(
+      ApiConstants.movieDetails(id),
+      extra: {
+        'language': 'id-ID',
+        'append_to_response': 'credits,videos',
+        'include_video_language': 'id,en,null',
+      },
+    );
+
+    if (data != null) {
+      final overview = data['overview'] as String?;
+      final credits = data['credits'] as Map<String, dynamic>?;
+      final cast = credits?['cast'] as List<dynamic>? ?? [];
+
+      // Jika sinopsis kosong atau tidak ada cast, fetch versi en-US sebagai fallback
+      if ((overview == null || overview.isEmpty) || cast.isEmpty) {
+        final enData = await _get(
+          ApiConstants.movieDetails(id),
+          extra: {
+            'language': 'en-US',
+            'append_to_response': 'credits,videos',
+            'include_video_language': 'id,en,null',
+          },
+        );
+
+        if (enData != null) {
+          if (overview == null || overview.isEmpty) {
+            data['overview'] = enData['overview'];
+          }
+          if (cast.isEmpty) {
+            data['credits'] = enData['credits'];
+          }
+        }
+      }
+    }
+    
+    return data;
+  }
+
+  /// Mengambil daftar cast dari raw detail response.
+  List<CastModel> parseCast(Map<String, dynamic> raw) {
+    final credits = raw['credits'] as Map<String, dynamic>?;
+    if (credits == null) return [];
+    final castRaw = credits['cast'] as List<dynamic>? ?? [];
+    return castRaw
+        .map((e) => CastModel.fromJson(e as Map<String, dynamic>))
+        .where((c) => c.profilePath != null)
+        .take(20)
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+  }
+
+  /// Mengambil key YouTube trailer utama.
+  /// Urutan prioritas: Official Trailer → Trailer → Teaser
+  String? parseTrailerKey(Map<String, dynamic> raw) {
+    final videos = raw['videos'] as Map<String, dynamic>?;
+    if (videos == null) return null;
+    final results = videos['results'] as List<dynamic>? ?? [];
+
+    final youtubeVideos = results
+        .map((e) => e as Map<String, dynamic>)
+        .where((v) => v['site'] == 'YouTube')
+        .toList();
+
+    // Cari Official Trailer terlebih dahulu
+    Map<String, dynamic>? trailer;
+    trailer = youtubeVideos.where((v) {
+      final name = (v['name'] as String? ?? '').toLowerCase();
+      return v['type'] == 'Trailer' && name.contains('official');
+    }).firstOrNull;
+
+    trailer ??= youtubeVideos.where((v) => v['type'] == 'Trailer').firstOrNull;
+    trailer ??= youtubeVideos.where((v) => v['type'] == 'Teaser').firstOrNull;
+    trailer ??= youtubeVideos.firstOrNull;
+
+    return trailer?['key'] as String?;
   }
 
   // ─── Parser ───────────────────────────────────────────────

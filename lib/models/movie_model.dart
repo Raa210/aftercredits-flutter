@@ -15,6 +15,12 @@ class MovieModel {
   final double popularity;
   final bool adult;
 
+  // ─── Detail-only fields (nullable, only populated via getMovieDetailsRaw) ───
+  final int? runtime; // durasi dalam menit
+  final String? tagline;
+  final String? status;
+  final List<Map<String, dynamic>> genres; // [{id, name}, ...]
+
   const MovieModel({
     required this.id,
     required this.title,
@@ -29,9 +35,25 @@ class MovieModel {
     this.originalLanguage,
     required this.popularity,
     this.adult = false,
+    this.runtime,
+    this.tagline,
+    this.status,
+    this.genres = const [],
   });
 
   factory MovieModel.fromJson(Map<String, dynamic> json) {
+    // Parse genres array (from detail response)
+    final genresRaw = json['genres'] as List<dynamic>?;
+    final List<Map<String, dynamic>> genresList = genresRaw
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        [];
+
+    // Parse genre_ids array (from list response)
+    final genreIdsRaw = json['genre_ids'] as List<dynamic>?;
+    final List<int> genreIdsList =
+        genreIdsRaw?.map((e) => e as int).toList() ?? [];
+
     return MovieModel(
       id: json['id'] as int? ?? 0,
       title: json['title'] as String? ?? json['name'] as String? ?? '',
@@ -42,13 +64,14 @@ class MovieModel {
       voteAverage: (json['vote_average'] as num?)?.toDouble() ?? 0.0,
       voteCount: json['vote_count'] as int? ?? 0,
       releaseDate: json['release_date'] as String?,
-      genreIds: (json['genre_ids'] as List<dynamic>?)
-              ?.map((e) => e as int)
-              .toList() ??
-          [],
+      genreIds: genreIdsList,
       originalLanguage: json['original_language'] as String?,
       popularity: (json['popularity'] as num?)?.toDouble() ?? 0.0,
       adult: json['adult'] as bool? ?? false,
+      runtime: json['runtime'] as int?,
+      tagline: json['tagline'] as String?,
+      status: json['status'] as String?,
+      genres: genresList,
     );
   }
 
@@ -77,6 +100,20 @@ class MovieModel {
   String get ratingFormatted => voteAverage.toStringAsFixed(1);
 
   bool get isHiddenGem => voteAverage >= 7.5 && voteCount < 2000;
+
+  /// Format runtime: "2j 15m"
+  String? get runtimeFormatted {
+    if (runtime == null || runtime! <= 0) return null;
+    final h = runtime! ~/ 60;
+    final m = runtime! % 60;
+    if (h == 0) return '${m}m';
+    if (m == 0) return '${h}j';
+    return '${h}j ${m}m';
+  }
+
+  /// Semua genre names (dari `genres` list jika tersedia, fallback ke genreIds)
+  List<String> get genreNames =>
+      genres.map((g) => g['name'] as String? ?? '').where((n) => n.isNotEmpty).toList();
 
   @override
   String toString() => 'MovieModel(id: $id, title: $title, adult: $adult)';
