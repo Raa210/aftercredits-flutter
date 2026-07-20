@@ -42,7 +42,9 @@ class CommunityService {
 
     // Filter kategori
     if (category != null && category.isNotEmpty && category.toLowerCase() != 'semua') {
-      selectQuery = selectQuery.eq('tag', category.toUpperCase());
+      String tag = category.toUpperCase();
+      if (tag == 'SPOILER TALK') tag = 'SPOILER';
+      selectQuery = selectQuery.eq('tag', tag);
     }
 
     // Filter search query
@@ -271,21 +273,10 @@ class CommunityService {
     final user = supabase.auth.currentUser;
     if (user == null) throw Exception('Silakan masuk terlebih dahulu');
 
-    // Hapus komentar induk — jika DB sudah memiliki kolom parent_id dengan
-    // ON DELETE CASCADE, balasan akan terhapus otomatis.
-    // Jika belum, kita hapus juga secara manual komentar dengan parent_id ini.
-    try {
-      await supabase
-          .from('comments')
-          .delete()
-          .eq('parent_id', commentId);
-    } catch (_) {
-      // Abaikan error jika kolom parent_id belum ada di DB
-    }
-
+    // ponytail: soft-delete ala Reddit — update teks, bukan hapus row
     await supabase
         .from('comments')
-        .delete()
+        .update({'content': '[Komentar ini telah dihapus]'})
         .eq('id', commentId)
         .eq('author_id', user.id);
   }

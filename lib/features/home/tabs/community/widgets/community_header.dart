@@ -116,21 +116,7 @@ class CommunityHeader extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: CommunitySpacing.xs),
-        const Padding(
-          padding: EdgeInsets.only(left: 44),
-          child: Text(
-            'Temukan teori, ending, dan diskusi film favoritmu.',
-            style: TextStyle(
-              color: CommunityColors.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              height: 1.4,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+
       ],
     );
   }
