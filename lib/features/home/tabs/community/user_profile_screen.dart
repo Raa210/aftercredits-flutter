@@ -8,6 +8,10 @@ import 'package:aftercredits/core/services/community_service.dart';
 import 'package:aftercredits/models/user_profile_model.dart';
 import 'community_colors.dart';
 import 'thread_detail_screen.dart';
+import 'package:aftercredits/core/services/review_community_service.dart';
+import 'package:aftercredits/models/community_review_model.dart';
+import 'package:aftercredits/features/review_detail/review_detail_screen.dart';
+import 'widgets/discussion_card.dart';
 
 const Map<int, String> _kGenreNames = {
   28: 'Aksi',
@@ -58,6 +62,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int _watchedCount = 0;
   List<Map<String, dynamic>> _userThreads = [];
   bool _loadingThreads = true;
+  List<CommunityReviewModel> _userReviews = [];
+  bool _loadingReviews = true;
 
   bool get _isOwnProfile =>
       AuthService().currentUser?.id == widget.userId;
@@ -74,6 +80,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _fetchFollowStatus(),
       _fetchFollowCounts(),
       _fetchUserThreads(),
+      _fetchUserReviews(),
     ]);
   }
 
@@ -116,6 +123,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loadingThreads = false);
+    }
+  }
+
+  Future<void> _fetchUserReviews() async {
+    try {
+      final revs = await ReviewCommunityService().getReviewsByUser(widget.userId);
+      if (mounted) setState(() => _userReviews = revs);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loadingReviews = false);
     }
   }
 
@@ -171,17 +188,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         slivers: [
           // ─── App Bar + Header ─────────────────────────────
           SliverAppBar(
-            expandedHeight: 240,
             pinned: true,
             backgroundColor: AppColors.darkPrimary,
+            elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded,
                   color: AppColors.textPrimary, size: 18),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildHeader(),
+            title: Text(
+              '@${widget.username}',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
+          ),
+
+          SliverToBoxAdapter(
+            child: _buildHeader(),
           ),
 
           // ─── Stats Row ────────────────────────────────────
@@ -231,10 +257,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ),
 
           // Content
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
-              child: Row(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Avatar
@@ -344,7 +369,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ],
               ),
             ),
-          ),
         ],
       ),
     );
@@ -458,7 +482,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               Tab(text: 'Diskusi (${_userThreads.length})'),
               const Tab(text: 'Watchlist (0)'),
               const Tab(text: 'Taste Profile'),
-              const Tab(text: 'Reviews (0)'),
+              Tab(text: 'Reviews (${_userReviews.length})'),
             ],
           ),
           SizedBox(
@@ -472,11 +496,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   sub: 'Belum ada film di watchlist',
                 ),
                 _buildTasteProfileTab(),
-                _buildEmptyTab(
-                  icon: Icons.rate_review_outlined,
-                  message: 'Belum ada review',
-                  sub: 'Belum ada review film dari pengguna ini',
-                ),
+                _buildReviewsTab(),
               ],
             ),
           ),
@@ -503,6 +523,121 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       physics: const BouncingScrollPhysics(),
       itemCount: _userThreads.length,
       itemBuilder: (context, index) => _buildThreadCard(_userThreads[index]),
+    );
+  }
+
+  Widget _buildReviewsTab() {
+    if (_loadingReviews) {
+      return const Center(
+        child: CircularProgressIndicator(color: CommunityColors.primary),
+      );
+    }
+    if (_userReviews.isEmpty) {
+      return _buildEmptyTab(
+        icon: Icons.rate_review_outlined,
+        message: 'Belum ada review',
+        sub: 'Belum ada review film dari pengguna ini',
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      itemCount: _userReviews.length,
+      itemBuilder: (context, index) => _buildReviewCard(_userReviews[index]),
+    );
+  }
+
+  Widget _buildReviewCard(CommunityReviewModel review) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ReviewDetailScreen(review: review),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: CommunityColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: CommunityColors.divider.withValues(alpha: 0.5),
+            width: 0.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    review.movieTitle,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.star.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded, color: AppColors.star, size: 14),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${review.rating}',
+                        style: const TextStyle(
+                          color: AppColors.star,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              review.text,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.access_time_rounded, size: 12, color: CommunityColors.textMuted),
+                const SizedBox(width: 4),
+                Text(
+                  review.timeLabel,
+                  style: const TextStyle(color: CommunityColors.textMuted, fontSize: 11),
+                ),
+                const Spacer(),
+                const Icon(Icons.favorite_rounded, size: 13, color: CommunityColors.primary),
+                const SizedBox(width: 4),
+                Text(
+                  '${review.likesCount}',
+                  style: const TextStyle(color: CommunityColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -578,11 +713,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            '$pct%  ${g['label']}',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 12,
+                          Flexible(
+                            child: Text(
+                              '$pct%  ${g['label']}',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -633,91 +772,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
 
   Widget _buildThreadCard(Map<String, dynamic> thread) {
-    final tagColor = Color(thread['tagColor'] as int? ?? 0xFFE50914);
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ThreadDetailScreen(thread: thread),
-        ),
-      ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: CommunityColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: CommunityColors.divider.withValues(alpha: 0.5),
-            width: 0.5,
+    return DiscussionCard(
+      thread: thread,
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ThreadDetailScreen(thread: thread),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Tag
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: tagColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                thread['tag'] as String? ?? '',
-                style: TextStyle(
-                  color: tagColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Title
-            Text(
-              thread['title'] as String? ?? '',
-              style: const TextStyle(
-                color: CommunityColors.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                height: 1.3,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-
-            // Footer stats
-            Row(
-              children: [
-                Icon(Icons.arrow_upward_rounded,
-                    size: 12, color: CommunityColors.textMuted),
-                const SizedBox(width: 4),
-                Text(
-                  '${thread['likes']}',
-                  style: const TextStyle(
-                      color: CommunityColors.textMuted, fontSize: 11),
-                ),
-                const SizedBox(width: 12),
-                Icon(Icons.chat_bubble_outline_rounded,
-                    size: 12, color: CommunityColors.textMuted),
-                const SizedBox(width: 4),
-                Text(
-                  '${thread['comments']}',
-                  style: const TextStyle(
-                      color: CommunityColors.textMuted, fontSize: 11),
-                ),
-                const Spacer(),
-                Text(
-                  thread['time'] as String? ?? '',
-                  style: const TextStyle(
-                      color: CommunityColors.textMuted, fontSize: 11),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+        );
+        _fetchUserThreads();
+      },
+      onDelete: _fetchUserThreads,
     );
   }
 }

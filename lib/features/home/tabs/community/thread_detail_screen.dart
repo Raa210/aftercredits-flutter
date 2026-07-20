@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:aftercredits/core/services/community_service.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
 import 'community_colors.dart';
 import 'user_profile_screen.dart';
 
@@ -234,6 +235,51 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
     );
   }
 
+  void _confirmDeleteThread() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CommunityColors.card,
+        title: Text('Hapus Diskusi?', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('Apakah Anda yakin ingin menghapus diskusi ini? Tindakan ini tidak dapat dibatalkan.', style: TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final id = _threadData['id'] as String;
+                await CommunityService().deleteThread(id);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Diskusi berhasil dihapus', style: TextStyle(color: AppColors.textPrimary)),
+                      backgroundColor: AppColors.darkTertiary,
+                    ),
+                  );
+                  Navigator.pop(context, true);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus diskusi: $e', style: TextStyle(color: AppColors.textPrimary)),
+                      backgroundColor: AppColors.accentRed,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text('Hapus', style: TextStyle(color: AppColors.accentRed, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final posterUrl = _threadData['posterUrl'] as String?;
@@ -254,6 +300,14 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          if (_threadData['author_id'] == AuthService().currentUser?.id)
+            IconButton(
+              icon: Icon(Icons.delete_outline_rounded, color: AppColors.accentRed),
+              tooltip: 'Hapus Diskusi',
+              onPressed: _confirmDeleteThread,
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -670,9 +724,11 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
           Container(
             padding: EdgeInsets.fromLTRB(
               16,
-              8,
+              12,
               16,
-              MediaQuery.of(context).viewInsets.bottom + 16,
+              MediaQuery.of(context).padding.bottom > 0 
+                  ? MediaQuery.of(context).padding.bottom + 8 
+                  : 12,
             ),
             decoration: const BoxDecoration(
               color: CommunityColors.card,
@@ -684,20 +740,25 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
               children: [
                 Expanded(
                   child: Container(
-                    height: 44,
+                    constraints: const BoxConstraints(minHeight: 46, maxHeight: 120),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
                     decoration: BoxDecoration(
                       color: CommunityColors.background,
-                      borderRadius: BorderRadius.circular(CommunityRadius.pill),
+                      borderRadius: BorderRadius.circular(23),
                       border: Border.all(color: CommunityColors.divider, width: 0.5),
                     ),
+                    alignment: Alignment.center,
                     child: TextField(
                       controller: _commentController,
                       focusNode: _commentFocusNode,
+                      minLines: 1,
+                      maxLines: 4,
                       style: const TextStyle(color: CommunityColors.textPrimary, fontSize: 14),
                       decoration: const InputDecoration(
+                        isDense: true,
                         hintText: 'Tulis komentar...',
-                        hintStyle: TextStyle(color: CommunityColors.textMuted, fontSize: 13),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        hintStyle: TextStyle(color: CommunityColors.textMuted, fontSize: 14),
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -705,19 +766,39 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: _submittingComment
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(CommunityColors.primary),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _submittingComment ? null : _addComment,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: CommunityColors.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: CommunityColors.primary.withAlpha(80),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: _submittingComment
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 20,
                           ),
-                        )
-                      : const Icon(Icons.send_rounded, color: CommunityColors.primary),
-                  onPressed: _submittingComment ? null : _addComment,
+                  ),
                 ),
               ],
             ),

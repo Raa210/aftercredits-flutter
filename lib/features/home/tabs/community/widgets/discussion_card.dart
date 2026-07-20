@@ -3,18 +3,24 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:aftercredits/features/home/tabs/community/community_colors.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/core/services/auth_service.dart';
+import 'package:aftercredits/core/services/community_service.dart';
+import 'package:aftercredits/features/home/tabs/community/user_profile_screen.dart';
 
 /// Card modern untuk menampilkan satu thread diskusi.
 class DiscussionCard extends StatefulWidget {
   final Map<String, dynamic> thread;
   final VoidCallback? onTap;
   final VoidCallback? onMenuTap;
+  final VoidCallback? onDelete;
 
   const DiscussionCard({
     super.key,
     required this.thread,
     this.onTap,
     this.onMenuTap,
+    this.onDelete,
   });
 
   @override
@@ -72,6 +78,8 @@ class _DiscussionCardState extends State<DiscussionCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildTopRow(),
+                      const SizedBox(height: CommunitySpacing.xs),
+                      _buildAuthorRow(),
                       const SizedBox(height: CommunitySpacing.sm),
                       _buildTitle(),
                       const SizedBox(height: CommunitySpacing.xs),
@@ -124,20 +132,24 @@ class _DiscussionCardState extends State<DiscussionCard> {
 
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: tagColor.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(CommunityRadius.sm),
-            border: Border.all(color: tagColor.withOpacity(0.3), width: 0.5),
-          ),
-          child: Text(
-            tag,
-            style: TextStyle(
-              color: tagColor,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: tagColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(CommunityRadius.sm),
+              border: Border.all(color: tagColor.withOpacity(0.3), width: 0.5),
+            ),
+            child: Text(
+              tag,
+              style: TextStyle(
+                color: tagColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -150,7 +162,7 @@ class _DiscussionCardState extends State<DiscussionCard> {
         ),
         const SizedBox(width: 4),
         InkWell(
-          onTap: widget.onMenuTap ?? () {},
+          onTap: widget.onMenuTap ?? _handleMenuTap,
           borderRadius: BorderRadius.circular(CommunityRadius.sm),
           child: const Padding(
             padding: EdgeInsets.all(4),
@@ -158,6 +170,146 @@ class _DiscussionCardState extends State<DiscussionCard> {
           ),
         ),
       ],
+    );
+  }
+
+  void _openUserProfile() {
+    final authorId = widget.thread['author_id'] as String? ?? '';
+    final authorName = widget.thread['author'] as String? ?? '';
+    final avatarUrl = widget.thread['author_avatar'] as String?;
+    if (authorId.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(
+          userId: authorId,
+          username: authorName,
+          avatarUrl: avatarUrl,
+        ),
+      ),
+    );
+  }
+
+  void _handleMenuTap() {
+    final authorId = widget.thread['author_id'] as String? ?? '';
+    final currentUserId = AuthService().currentUser?.id;
+    final isAuthor = currentUserId != null && authorId == currentUserId;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: CommunityColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isAuthor) ...[
+              ListTile(
+                leading: Icon(Icons.delete_outline_rounded, color: AppColors.accentRed),
+                title: Text('Hapus Diskusi', style: TextStyle(color: AppColors.accentRed, fontWeight: FontWeight.w600)),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  _confirmDelete();
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.person_outline_rounded, color: AppColors.textPrimary),
+              title: Text('Lihat Profil @${widget.thread['author']}', style: const TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _openUserProfile();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: CommunityColors.card,
+        title: Text('Hapus Diskusi?', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('Apakah Anda yakin ingin menghapus diskusi ini? Tindakan ini tidak dapat dibatalkan.', style: TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final id = widget.thread['id'] as String;
+                await CommunityService().deleteThread(id);
+                widget.onDelete?.call();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Diskusi berhasil dihapus', style: TextStyle(color: AppColors.textPrimary)),
+                      backgroundColor: AppColors.darkTertiary,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus diskusi: $e', style: TextStyle(color: AppColors.textPrimary)),
+                      backgroundColor: AppColors.accentRed,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text('Hapus', style: TextStyle(color: AppColors.accentRed, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthorRow() {
+    final authorName = widget.thread['author'] as String? ?? 'Anonymous';
+    final avatarUrl = widget.thread['author_avatar'] as String?;
+
+    return GestureDetector(
+      onTap: _openUserProfile,
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 11,
+            backgroundColor: CommunityColors.divider,
+            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                ? CachedNetworkImageProvider(avatarUrl)
+                : null,
+            child: (avatarUrl == null || avatarUrl.isEmpty)
+                ? Text(
+                    authorName.isNotEmpty ? authorName[0].toUpperCase() : '?',
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 10, fontWeight: FontWeight.w700),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              '@$authorName',
+              style: const TextStyle(
+                color: CommunityColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -243,12 +395,13 @@ class _DiscussionCardState extends State<DiscussionCard> {
     final comments = widget.thread['comments'] as int;
     final views = widget.thread['views'] as int? ?? 0;
 
-    return Row(
+    return Wrap(
+      spacing: 14,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         _StatChip(icon: Icons.arrow_upward_rounded, iconColor: CommunityColors.primary, value: _formatCount(likes)),
-        const SizedBox(width: CommunitySpacing.md),
         _StatChip(icon: Icons.chat_bubble_rounded, iconColor: CommunityColors.textMuted, value: _formatCount(comments)),
-        const SizedBox(width: CommunitySpacing.md),
         _StatChip(icon: Icons.visibility_rounded, iconColor: CommunityColors.textMuted, value: _formatCount(views)),
       ],
     );

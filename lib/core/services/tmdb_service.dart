@@ -121,17 +121,18 @@ class TmdbService {
     return _parse(d);
   }
 
-  /// Hidden gems: rating tinggi, vote sedikit
+  /// Hidden gems: rating tinggi, vote cukup, diurutkan popularitas agar film berkualitas & aman
   Future<List<MovieModel>> getHiddenGems() async {
     final d = await _get(
       ApiConstants.discoverBase,
       extra: {
         'language': 'id-ID',
         'sort_by': 'vote_average.desc',
-        'vote_count.gte': '100',
-        'vote_count.lte': '3000',
+        'vote_count.gte': '300',
+        'vote_count.lte': '5000',
         'vote_average.gte': '7.5',
         'include_adult': 'false',
+        'without_genres': '10749',
       },
     );
     return _parse(d);
@@ -236,7 +237,67 @@ class TmdbService {
     final results = data['results'] as List<dynamic>? ?? [];
     return results
         .map((e) => MovieModel.fromJson(e as Map<String, dynamic>))
-        .where((m) => m.posterPath != null)
+        .where((m) => m.posterPath != null && _isSafeAndCleanMovie(m))
         .toList();
+  }
+
+  bool _isSafeAndCleanMovie(MovieModel m) {
+    if (m.adult) return false;
+
+    final titleLower = m.title.toLowerCase();
+    final origLower = (m.originalTitle ?? '').toLowerCase();
+    final overviewLower = (m.overview ?? '').toLowerCase();
+
+    // Blacklist kata kunci tidak senonoh / eksplisit / erotis yang lolos include_adult dari TMDB
+    const bannedKeywords = [
+      'nude',
+      'nudity',
+      'sex',
+      'erotic',
+      'erotica',
+      'porn',
+      'porno',
+      'xxx',
+      'emmanuelle',
+      'kama sutra',
+      'sensual',
+      'lust',
+      'voyeur',
+      'seduction',
+      'seductress',
+      'taboo',
+      'nympho',
+      'incest',
+      'orgasm',
+      'playboy',
+      'penthouse',
+      'fetish',
+      'peep show',
+      'whore',
+      'slut',
+      'brothel',
+    ];
+
+    for (final kw in bannedKeywords) {
+      if (titleLower.contains(kw) || origLower.contains(kw)) {
+        return false;
+      }
+    }
+
+    const bannedOverview = [
+      'erotic movie',
+      'erotic film',
+      'softcore',
+      'hardcore porn',
+      'adult film',
+      'sex industry',
+    ];
+    for (final kw in bannedOverview) {
+      if (overviewLower.contains(kw)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

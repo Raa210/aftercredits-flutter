@@ -87,8 +87,8 @@ class _CommunityHeaderState extends State<CommunityHeader> {
           Row(
             children: [
               Expanded(child: _buildTitle()),
-              const SizedBox(width: CommunitySpacing.md),
-              _buildCreateButton(),
+              const SizedBox(width: CommunitySpacing.sm),
+              Flexible(child: _buildCreateButton()),
             ],
           ),
           const SizedBox(height: CommunitySpacing.md),
@@ -120,13 +120,17 @@ class _CommunityHeaderState extends State<CommunityHeader> {
               ),
             ),
             const SizedBox(width: CommunitySpacing.sm),
-            const Text(
-              'Community',
-              style: TextStyle(
-                color: CommunityColors.textPrimary,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
+            const Flexible(
+              child: Text(
+                'Community',
+                style: TextStyle(
+                  color: CommunityColors.textPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -139,56 +143,68 @@ class _CommunityHeaderState extends State<CommunityHeader> {
   Widget _buildSearchBar() {
     return Container(
       height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: AppColors.darkTertiary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border, width: 0.8),
       ),
-      child: TextField(
-        controller: _controller,
-        onChanged: (val) {
-          setState(() => _hasQuery = val.isNotEmpty);
-          widget.onSearch?.call(val);
-        },
-        textAlignVertical: TextAlignVertical.center,
-        style: const TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          hintText: 'Cari diskusi atau pengguna...',
-          hintStyle: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-          ),
-          prefixIcon: const Icon(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(
             Icons.search_rounded,
             color: AppColors.textMuted,
             size: 22,
           ),
-          suffixIcon: _hasQuery
-              ? GestureDetector(
-                  onTap: () {
-                    _controller.clear();
-                    setState(() => _hasQuery = false);
-                    widget.onSearch?.call('');
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: AppColors.textMuted,
-                    size: 18,
-                  ),
-                )
-              : null,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              onChanged: (val) {
+                setState(() => _hasQuery = val.isNotEmpty);
+                widget.onSearch?.call(val);
+              },
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: const InputDecoration(
+                isDense: true,
+                hintText: 'Cari diskusi atau pengguna...',
+                hintStyle: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          if (_hasQuery) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                _controller.clear();
+                setState(() => _hasQuery = false);
+                widget.onSearch?.call('');
+              },
+              behavior: HitTestBehavior.opaque,
+              child: const Padding(
+                padding: EdgeInsets.all(4.0),
+                child: Icon(
+                  Icons.close_rounded,
+                  color: AppColors.textMuted,
+                  size: 18,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -196,22 +212,25 @@ class _CommunityHeaderState extends State<CommunityHeader> {
   Widget _buildCreateButton() {
     return SizedBox(
       height: 48,
-      child: ElevatedButton.icon(
-        onPressed: widget.onCreateThread ?? () {},
-        icon: const Icon(Icons.add_rounded, size: 20),
-        label: const Text('Buat Thread'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: CommunityColors.primary,
-          foregroundColor: CommunityColors.textPrimary,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: ElevatedButton.icon(
+          onPressed: widget.onCreateThread ?? () {},
+          icon: const Icon(Icons.add_rounded, size: 20),
+          label: const Text('Buat Thread'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: CommunityColors.primary,
+            foregroundColor: CommunityColors.textPrimary,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            textStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
       ),

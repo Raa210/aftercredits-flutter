@@ -10,6 +10,10 @@ import 'package:aftercredits/core/services/auth_service.dart';
 import 'package:aftercredits/models/movie_model.dart';
 import 'package:aftercredits/models/cast_model.dart';
 import 'package:aftercredits/models/movie_review_model.dart';
+import 'package:aftercredits/core/services/review_community_service.dart';
+import 'package:aftercredits/models/community_review_model.dart';
+import 'package:aftercredits/features/review_detail/review_detail_screen.dart';
+import 'package:aftercredits/features/home/tabs/community/user_profile_screen.dart';
 
 // ─── Genre map (ID → Nama) ───────────────────────────────────
 const Map<int, String> _kGenreNames = {
@@ -55,6 +59,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   bool _isWatched = false;
   bool _isInWatchlist = false;
   MovieReview? _existingReview;
+  List<CommunityReviewModel> _communityReviews = [];
 
   // Review form
   double _reviewRating = 0;
@@ -104,11 +109,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     final watched = await _userData.isWatched(widget.movie.id);
     final watchlist = await _userData.isInWatchlist(widget.movie.id);
     final review = await _userData.getReview(widget.movie.id);
+    final commReviews = await ReviewCommunityService().getReviewsForMovie(widget.movie.id);
     if (!mounted) return;
     setState(() {
       _isWatched = watched;
       _isInWatchlist = watchlist;
       _existingReview = review;
+      _communityReviews = commReviews;
       if (review != null) {
         _reviewRating = review.rating;
         _reviewController.text = review.text;
@@ -121,7 +128,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   Future<void> _toggleWatched() async {
     if (!_isLoggedIn) { _showLoginSnack(); return; }
     HapticFeedback.lightImpact();
-    final nowWatched = await _userData.toggleWatched(widget.movie.id);
+    final nowWatched = await _userData.toggleWatched(
+      widget.movie.id,
+      movieTitle: widget.movie.title,
+      posterUrl: widget.movie.posterPath,
+    );
 
     // Simpan genre dari film ini untuk Movie Taste
     final movie = _detail ?? widget.movie;
@@ -142,7 +153,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   Future<void> _toggleWatchlist() async {
     if (!_isLoggedIn) { _showLoginSnack(); return; }
     HapticFeedback.lightImpact();
-    final nowInWatchlist = await _userData.toggleWatchlist(widget.movie.id);
+    final nowInWatchlist = await _userData.toggleWatchlist(
+      widget.movie.id,
+      movieTitle: widget.movie.title,
+      posterUrl: widget.movie.posterPath,
+    );
     if (!mounted) return;
     setState(() => _isInWatchlist = nowInWatchlist);
     _showSnack(nowInWatchlist ? 'Ditambahkan ke Watchlist ✓' : 'Dihapus dari Watchlist');
@@ -160,6 +175,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       movieId: widget.movie.id,
       rating: _reviewRating,
       text: _reviewController.text,
+      movieTitle: widget.movie.title,
+      posterUrl: widget.movie.posterUrl,
     );
 
     if (!mounted) return;
@@ -757,6 +774,16 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 },
               ),
             ],
+
+            if (_communityReviews.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              _SectionTitle(title: 'Review dari Komunitas (${_communityReviews.length})'),
+              const SizedBox(height: 14),
+              ...List.generate(
+                _communityReviews.length,
+                (i) => _buildCommunityReviewCard(_communityReviews[i]),
+              ),
+            ],
           ],
         ),
       ),
@@ -808,6 +835,123 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _openUserProfile(String username, String? avatarUrl, [String? userId]) {
+    if (userId == null || userId.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(
+          userId: userId,
+          username: username,
+          avatarUrl: avatarUrl,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommunityReviewCard(CommunityReviewModel review) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ReviewDetailScreen(review: review),
+          ),
+        ).then((_) => _loadUserState());
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.darkSecondary,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _openUserProfile(review.authorName, review.authorAvatar, review.authorId),
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: AppColors.darkTertiary,
+                          backgroundImage: review.authorAvatar != null
+                              ? NetworkImage(review.authorAvatar!)
+                              : null,
+                          child: review.authorAvatar == null
+                              ? const Icon(Icons.person, size: 16, color: AppColors.textSecondary)
+                              : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            review.authorName,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                _StarRatingDisplay(rating: review.rating, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  review.rating.toStringAsFixed(1),
+                  style: const TextStyle(
+                    color: AppColors.star,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            if (review.text.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                review.text,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  review.isUserReview ? Icons.person_outline : Icons.favorite_border_rounded,
+                  size: 14,
+                  color: AppColors.textMuted,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  review.isUserReview ? 'Review kamu' : '${review.likesCount} suka',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+                const Spacer(),
+                Text(
+                  review.timeLabel,
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

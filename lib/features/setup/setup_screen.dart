@@ -38,6 +38,8 @@ class _SetupScreenState extends State<SetupScreen> {
 
   List<MovieModel> _trendingMovies = [];
   bool _loadingMovies = true;
+  final _movieSearchCtrl = TextEditingController();
+  Timer? _movieDebounce;
 
   // ── Services ──────────────────────────────────────────────
   final _auth = AuthService();
@@ -70,8 +72,10 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   void dispose() {
     _usernameCtrl.dispose();
+    _movieSearchCtrl.dispose();
     _pageController.dispose();
     _debounce?.cancel();
+    _movieDebounce?.cancel();
     super.dispose();
   }
 
@@ -104,6 +108,29 @@ class _SetupScreenState extends State<SetupScreen> {
         setState(() => _loadingMovies = false);
       }
     }
+  }
+
+  void _onMovieSearchChanged(String query) {
+    _movieDebounce?.cancel();
+    setState(() {}); // Update tombol clear (suffixIcon)
+    if (query.trim().isEmpty) {
+      _fetchMoviesByGenres();
+      return;
+    }
+    _movieDebounce = Timer(const Duration(milliseconds: 350), () async {
+      setState(() => _loadingMovies = true);
+      try {
+        final res = await _tmdb.searchMovies(query.trim());
+        if (mounted) {
+          setState(() {
+            _trendingMovies = res.take(24).toList();
+            _loadingMovies = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _loadingMovies = false);
+      }
+    });
   }
 
   // ─── Username validation ──────────────────────────────────
@@ -824,7 +851,42 @@ class _SetupScreenState extends State<SetupScreen> {
                     : 'Pilih minimal 5 film yang pernah kamu tonton • ${_selectedMovies.length}/5',
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _movieSearchCtrl,
+              onChanged: _onMovieSearchChanged,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Cari judul film favoritmu...',
+                hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
+                suffixIcon: _movieSearchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, color: AppColors.textSecondary, size: 18),
+                        onPressed: () {
+                          _movieSearchCtrl.clear();
+                          _onMovieSearchChanged('');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppColors.darkTertiary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.accentRed, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
             Expanded(
               child: _loadingMovies
                   ? const Center(

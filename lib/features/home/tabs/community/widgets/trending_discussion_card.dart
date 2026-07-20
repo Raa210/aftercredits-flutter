@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:aftercredits/features/home/tabs/community/community_colors.dart';
+import 'package:aftercredits/features/home/tabs/community/thread_detail_screen.dart';
+import 'package:aftercredits/features/home/tabs/community/user_profile_screen.dart';
 
 /// Sidebar card "Trending Discussion".
 ///
@@ -113,96 +115,141 @@ class _TrendingItemState extends State<_TrendingItem> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        color: _isHovered
-            ? CommunityColors.cardHover
-            : Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            children: [
-              // ─── Ranking ──────────────────────
-              SizedBox(
-                width: 24,
-                child: Text(
-                  '${widget.rank}',
-                  style: TextStyle(
-                    color: widget.rank <= 3
-                        ? CommunityColors.primary
-                        : CommunityColors.textMuted,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ThreadDetailScreen(thread: widget.thread),
+            ),
+          );
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          color: _isHovered
+              ? CommunityColors.cardHover
+              : Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(
+              children: [
+                // ─── Ranking ──────────────────────
+                SizedBox(
+                  width: 24,
+                  child: Text(
+                    '${widget.rank}',
+                    style: TextStyle(
+                      color: widget.rank <= 3
+                          ? CommunityColors.primary
+                          : CommunityColors.textMuted,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-              // ─── Poster Kecil ─────────────────
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 40,
-                  height: 56,
-                  child: _buildPoster(),
+                // ─── Poster Kecil ─────────────────
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    width: 40,
+                    height: 56,
+                    child: _buildPoster(),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-              // ─── Info ─────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.thread['title'] as String,
-                      style: const TextStyle(
-                        color: CommunityColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
+                // ─── Info ─────────────────────────
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          final authorId = widget.thread['author_id'] as String? ?? '';
+                          final authorName = widget.thread['author'] as String? ?? '';
+                          if (authorId.isNotEmpty) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => UserProfileScreen(
+                                  userId: authorId,
+                                  username: authorName,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Text(
+                          '@${widget.thread['author'] ?? 'anon'}',
+                          style: const TextStyle(
+                            color: CommunityColors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.favorite_rounded,
-                          size: 12,
-                          color: CommunityColors.primary,
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.thread['title'] as String,
+                        style: const TextStyle(
+                          color: CommunityColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
                         ),
-                        const SizedBox(width: 3),
-                        Text(
-                          _formatCount(widget.thread['likes'] as int),
-                          style: const TextStyle(
-                            color: CommunityColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 12,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.favorite_rounded,
+                                size: 12,
+                                color: CommunityColors.primary,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                _formatCount(widget.thread['likes'] as int),
+                                style: const TextStyle(
+                                  color: CommunityColors.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Icon(
-                          Icons.chat_bubble_rounded,
-                          size: 12,
-                          color: CommunityColors.textMuted,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          _formatCount(widget.thread['comments'] as int),
-                          style: const TextStyle(
-                            color: CommunityColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.chat_bubble_rounded,
+                                size: 12,
+                                color: CommunityColors.textMuted,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                _formatCount(widget.thread['comments'] as int),
+                                style: const TextStyle(
+                                  color: CommunityColors.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

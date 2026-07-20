@@ -7,6 +7,7 @@ import 'package:aftercredits/models/movie_model.dart';
 import 'package:aftercredits/core/services/review_community_service.dart';
 import 'package:aftercredits/core/services/tmdb_service.dart';
 import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
+import 'package:aftercredits/features/home/tabs/community/user_profile_screen.dart';
 
 class ReviewDetailScreen extends StatefulWidget {
   final CommunityReviewModel review;
@@ -104,6 +105,19 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
     if (_movieDetail == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: _movieDetail!)),
+    );
+  }
+
+  void _openUserProfile(String username, String? avatarUrl, [String? userId]) {
+    if (userId == null || userId.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(
+          userId: userId,
+          username: username,
+          avatarUrl: avatarUrl,
+        ),
+      ),
     );
   }
 
@@ -248,32 +262,42 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Author Header
+          // Author Header & Stars
           Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.darkTertiary,
-                backgroundImage: widget.review.authorAvatar != null
-                    ? NetworkImage(widget.review.authorAvatar!)
-                    : null,
-                child: widget.review.authorAvatar == null
-                    ? Text(widget.review.authorName.isNotEmpty ? widget.review.authorName[0].toUpperCase() : '?',
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold))
-                    : null,
-              ),
-              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '@${widget.review.authorName}',
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(widget.review.timeLabel, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
-                  ],
+                child: GestureDetector(
+                  onTap: () => _openUserProfile(widget.review.authorName, widget.review.authorAvatar, widget.review.authorId),
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.darkTertiary,
+                        backgroundImage: widget.review.authorAvatar != null
+                            ? NetworkImage(widget.review.authorAvatar!)
+                            : null,
+                        child: widget.review.authorAvatar == null
+                            ? Text(widget.review.authorName.isNotEmpty ? widget.review.authorName[0].toUpperCase() : '?',
+                                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold))
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '@${widget.review.authorName}',
+                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(widget.review.timeLabel, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               // Stars
@@ -383,19 +407,26 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundColor: AppColors.darkTertiary,
-                      backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                      child: avatar == null
-                          ? Text(author[0].toUpperCase(),
-                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '@$author',
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+                    GestureDetector(
+                      onTap: () => _openUserProfile(author, avatar, c['author_id'] as String?),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: AppColors.darkTertiary,
+                            backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                            child: avatar == null
+                                ? Text(author[0].toUpperCase(),
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '@$author',
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
                     ),
                     const Spacer(),
                     Text(time, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
@@ -439,16 +470,17 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
           Expanded(
             child: Container(
               constraints: const BoxConstraints(minHeight: 46, maxHeight: 120),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
               decoration: BoxDecoration(
                 color: AppColors.darkTertiary,
                 borderRadius: BorderRadius.circular(23),
                 border: Border.all(color: AppColors.border, width: 0.8),
               ),
+              alignment: Alignment.center,
               child: TextField(
                 controller: _commentController,
                 minLines: 1,
                 maxLines: 4,
-                textAlignVertical: TextAlignVertical.center,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 14,
@@ -465,7 +497,7 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),

@@ -5,6 +5,7 @@ class CommunityReviewModel {
   final String? posterUrl;
   final String authorName;
   final String? authorAvatar;
+  final String? authorId;
   final double rating;
   final String text;
   final int likesCount;
@@ -18,6 +19,7 @@ class CommunityReviewModel {
     this.posterUrl,
     required this.authorName,
     this.authorAvatar,
+    this.authorId,
     required this.rating,
     required this.text,
     required this.likesCount,
@@ -32,6 +34,7 @@ class CommunityReviewModel {
     String? posterUrl,
     String? authorName,
     String? authorAvatar,
+    String? authorId,
     double? rating,
     String? text,
     int? likesCount,
@@ -45,6 +48,7 @@ class CommunityReviewModel {
       posterUrl: posterUrl ?? this.posterUrl,
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
+      authorId: authorId ?? this.authorId,
       rating: rating ?? this.rating,
       text: text ?? this.text,
       likesCount: likesCount ?? this.likesCount,

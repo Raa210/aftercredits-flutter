@@ -145,47 +145,46 @@ class _AuthScreenState extends State<AuthScreen> {
 
           // ── Content ──────────────────────────────────────
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(height: size.height * 0.12),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Branding
+                    FadeInDown(
+                      duration: const Duration(milliseconds: 700),
+                      child: _buildBranding(),
+                    ),
 
-                  // Branding
-                  FadeInDown(
-                    duration: const Duration(milliseconds: 700),
-                    child: _buildBranding(),
-                  ),
+                    const SizedBox(height: 36),
 
-                  const Spacer(),
+                    // Auth card
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 200),
+                      duration: const Duration(milliseconds: 600),
+                      child: _buildAuthCard(),
+                    ),
 
-                  // Auth card
-                  FadeInUp(
-                    delay: const Duration(milliseconds: 200),
-                    duration: const Duration(milliseconds: 600),
-                    child: _buildAuthCard(),
-                  ),
+                    const SizedBox(height: 20),
 
-                  const SizedBox(height: 20),
-
-                  // Guest option
-                  FadeInUp(
-                    delay: const Duration(milliseconds: 400),
-                    child: TextButton(
-                      onPressed: _isLoading ? null : _continueAsGuest,
-                      child: const Text(
-                        'Lanjutkan sebagai Tamu',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 13,
+                    // Guest option
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 400),
+                      child: TextButton(
+                        onPressed: _isLoading ? null : _continueAsGuest,
+                        child: const Text(
+                          'Lanjutkan sebagai Tamu',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 40),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -248,7 +247,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildAuthCard() {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
       decoration: BoxDecoration(
         color: AppColors.darkSecondary.withOpacity(0.90),
         borderRadius: BorderRadius.circular(28),
@@ -327,17 +326,30 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildGoogleButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: 54,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleGoogleSignIn,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: const Color(0xFF1F1F1F),
           elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          ),
           disabledBackgroundColor: Colors.white.withOpacity(0.6),
         ),
         child: _isLoading
@@ -351,19 +363,31 @@ class _AuthScreenState extends State<AuthScreen> {
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
+                  Image.network(
+                    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
                     width: 22,
                     height: 22,
-                    child: CustomPaint(painter: _GoogleLogoPainter()),
+                    errorBuilder: (_, __, ___) => SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CustomPaint(painter: _GoogleLogoPainter()),
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Lanjutkan dengan Google',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1F1F1F),
+                  const SizedBox(width: 10),
+                  const Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Lanjutkan dengan Google',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F1F1F),
+                          letterSpacing: -0.2,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -374,44 +398,52 @@ class _AuthScreenState extends State<AuthScreen> {
 }
 
 // ─────────────────────────────────────────────────────────
-// Google 'G' logo painter
+// Google 'G' logo painter (Fallback offline)
 // ─────────────────────────────────────────────────────────
 
 class _GoogleLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final double cx = size.width / 2;
-    final double cy = size.height / 2;
-    final double r = size.width / 2;
+    final double w = size.width;
+    final double h = size.height;
+    
+    final Rect rect = Rect.fromLTWH(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
+    final double stroke = w * 0.22;
+    
+    final bluePaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawArc(rect, -0.4, 1.2, false, bluePaint);
 
-    canvas.clipPath(
-        Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r)));
+    final greenPaint = Paint()
+      ..color = const Color(0xFF34A853)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawArc(rect, 0.8, 1.1, false, greenPaint);
 
-    final colors = [
-      const Color(0xFF4285F4),
-      const Color(0xFF34A853),
-      const Color(0xFFFBBC05),
-      const Color(0xFFEA4335),
-    ];
-    final starts = [-0.52, 0.52, 1.05, -1.60];
-    final sweeps = [1.04, 0.53, 0.55, 1.08];
+    final yellowPaint = Paint()
+      ..color = const Color(0xFFFBBC05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawArc(rect, 1.9, 0.9, false, yellowPaint);
 
-    for (int i = 0; i < 4; i++) {
-      final paint = Paint()
-        ..color = colors[i]
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = size.width * 0.38;
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.62),
-        starts[i] * 3.14159,
-        sweeps[i] * 3.14159,
-        false,
-        paint,
-      );
-    }
+    final redPaint = Paint()
+      ..color = const Color(0xFFEA4335)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawArc(rect, 2.8, 1.0, false, redPaint);
+
+    final barPaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.fill;
     canvas.drawRect(
-      Rect.fromLTWH(cx - 0.5, cy - r * 0.4, r, r * 0.4),
-      Paint()..color = Colors.white,
+      Rect.fromLTRB(w * 0.5, h * 0.5 - stroke * 0.5, w * 0.9, h * 0.5 + stroke * 0.5),
+      barPaint,
     );
   }
 

@@ -77,9 +77,9 @@ class _SeeAllMoviesScreenState extends State<SeeAllMoviesScreen> {
       results = await _tmdb.getByGenre(
         genreId,
         sortBy: 'vote_average.desc',
-        minVoteCount: 100,
-        maxVoteCount: 3000,
-        minVoteAverage: 7.0,
+        minVoteCount: 300,
+        maxVoteCount: 5000,
+        minVoteAverage: 7.2,
       );
     }
 
@@ -194,8 +194,8 @@ class _SeeAllMoviesScreenState extends State<SeeAllMoviesScreen> {
                       )
                     : GridView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 150,
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 10,
                           childAspectRatio: 0.58,

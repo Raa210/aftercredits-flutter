@@ -173,9 +173,19 @@ class CommunityService {
       await supabase
           .from('thread_likes')
           .delete()
-          .eq('thread_id', threadId)
-          .eq('user_id', user.id);
+          .eq('thread_id', threadId);
     }
+  }
+
+  Future<void> deleteThread(String threadId) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) throw Exception('Silakan masuk terlebih dahulu');
+
+    await supabase
+        .from('threads')
+        .delete()
+        .eq('id', threadId)
+        .eq('author_id', user.id);
   }
 
   Future<bool> isLiked(String threadId) async {

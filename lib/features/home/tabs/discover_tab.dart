@@ -14,6 +14,8 @@ import 'package:aftercredits/models/community_review_model.dart';
 import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
 import 'package:aftercredits/features/review_detail/review_detail_screen.dart';
 import 'package:aftercredits/features/home/see_all_movies_screen.dart';
+import 'package:aftercredits/features/home/tabs/community/user_profile_screen.dart';
+import 'package:aftercredits/features/home/tabs/community/thread_detail_screen.dart';
 
 class DiscoverTab extends StatefulWidget {
   const DiscoverTab({super.key});
@@ -137,8 +139,8 @@ class _DiscoverTabState extends State<DiscoverTab> {
       ]);
       if (!mounted) return;
       setState(() {
-        _popularMovies = results[0] as List<MovieModel>;
-        _hiddenGems = results[1] as List<MovieModel>;
+        _popularMovies = results[0];
+        _hiddenGems = results[1];
         _genreLoading = false;
       });
     }
@@ -332,7 +334,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
 
   Widget _buildLoadingBox() {
     return const SizedBox(
-      height: 180,
+      height: 205,
       child: Center(
         child: CircularProgressIndicator(color: AppColors.accentRed, strokeWidth: 2),
       ),
@@ -398,21 +400,43 @@ class _DiscoverTabState extends State<DiscoverTab> {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 14,
-                          backgroundColor: AppColors.darkTertiary,
-                          backgroundImage: review.authorAvatar != null ? NetworkImage(review.authorAvatar!) : null,
-                          child: review.authorAvatar == null
-                              ? Text(review.authorName.isNotEmpty ? review.authorName[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold))
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            '@${review.authorName}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                          child: GestureDetector(
+                            onTap: () {
+                              if (review.authorId != null && review.authorId!.isNotEmpty) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => UserProfileScreen(
+                                      userId: review.authorId!,
+                                      username: review.authorName,
+                                      avatarUrl: review.authorAvatar,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: AppColors.darkTertiary,
+                                  backgroundImage: review.authorAvatar != null ? NetworkImage(review.authorAvatar!) : null,
+                                  child: review.authorAvatar == null
+                                      ? Text(review.authorName.isNotEmpty ? review.authorName[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold))
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '@${review.authorName}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const Icon(Icons.star_rounded, color: AppColors.star, size: 14),
@@ -449,6 +473,59 @@ class _DiscoverTabState extends State<DiscoverTab> {
     );
   }
 
+  void _openUserProfile(String username, String? avatarUrl, [String? userId]) {
+    if (userId == null || userId.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(
+          userId: userId,
+          username: username,
+          avatarUrl: avatarUrl,
+        ),
+      ),
+    );
+  }
+
+  void _handleActivityTap(Map<String, dynamic> act) {
+    if (act.containsKey('review_model') && act['review_model'] != null) {
+      final review = act['review_model'] as CommunityReviewModel;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ReviewDetailScreen(review: review),
+        ),
+      );
+    } else if (act.containsKey('thread_model') && act['thread_model'] != null) {
+      final thread = act['thread_model'] as Map<String, dynamic>;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ThreadDetailScreen(thread: thread),
+        ),
+      );
+    } else if (act['movie_id'] != null) {
+      final movieId = act['movie_id'] as int;
+      final movieTitle = act['movie'] as String? ?? 'Film #$movieId';
+      final posterUrl = act['poster_url'] as String?;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MovieDetailScreen(
+            movie: MovieModel(
+              id: movieId,
+              title: movieTitle,
+              posterPath: posterUrl,
+              backdropPath: null,
+              overview: '',
+              releaseDate: '',
+              voteAverage: 0.0,
+              voteCount: 0,
+              popularity: 0.0,
+              genreIds: [],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
   Widget _buildFriendActivities(List<Map<String, dynamic>> activities) {
     if (activities.isEmpty) {
       return Container(
@@ -480,50 +557,59 @@ class _DiscoverTabState extends State<DiscoverTab> {
           final hasMovie = act.containsKey('movie');
           final target = hasMovie ? act['movie'] as String : act['thread'] as String;
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.darkSecondary,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border, width: 0.5),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.darkTertiary,
-                  backgroundImage: avatar != null ? NetworkImage(avatar) : null,
-                  child: avatar == null
-                      ? Text(author[0].toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold))
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
-                          children: [
-                            TextSpan(text: '@$author ', style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                            TextSpan(text: '$action '),
-                            TextSpan(text: target, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                          ],
-                        ),
-                      ),
-                      if (detail != null) ...[
-                        const SizedBox(height: 4),
-                        Text(detail, style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontStyle: FontStyle.italic)),
-                      ],
-                      const SizedBox(height: 6),
-                      Text(time, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
-                    ],
+          return GestureDetector(
+            onTap: () => _handleActivityTap(act),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.darkSecondary,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border, width: 0.5),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () => _openUserProfile(author, avatar, act['author_id'] as String?),
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.darkTertiary,
+                      backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                      child: avatar == null
+                          ? Text(author[0].toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold))
+                          : null,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: () => _openUserProfile(author, avatar, act['author_id'] as String?),
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+                              children: [
+                                TextSpan(text: '@$author ', style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                TextSpan(text: '$action '),
+                                TextSpan(text: target, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (detail != null) ...[
+                          const SizedBox(height: 4),
+                          Text(detail, style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontStyle: FontStyle.italic)),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(time, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -640,7 +726,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
   Widget _buildMoviesRow(List<MovieModel> movies, {required Color accentColor}) {
     if (movies.isEmpty) {
       return const SizedBox(
-        height: 180,
+        height: 205,
         child: Center(
           child: Text('Tidak ada film',
               style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
@@ -649,7 +735,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
     }
 
     return SizedBox(
-      height: 185,
+      height: 205,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
@@ -766,7 +852,11 @@ class _HeroCardState extends State<_HeroCard> {
     }
     HapticFeedback.lightImpact();
     setState(() => _toggling = true);
-    final nowIn = await _userData.toggleWatchlist(widget.movie.id);
+    final nowIn = await _userData.toggleWatchlist(
+      widget.movie.id,
+      movieTitle: widget.movie.title,
+      posterUrl: widget.movie.posterPath,
+    );
     if (!mounted) return;
     setState(() {
       _isInWatchlist = nowIn;

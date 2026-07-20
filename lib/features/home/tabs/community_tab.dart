@@ -362,6 +362,7 @@ class _CommunityTabState extends State<CommunityTab> {
                     );
                     _loadInitialData(); // Refresh untuk update stats (like/comment/view)
                   },
+                  onDelete: () => _loadInitialData(),
                 ),
               ),
             );

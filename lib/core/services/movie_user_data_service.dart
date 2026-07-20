@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aftercredits/models/movie_review_model.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
+import 'package:aftercredits/core/services/supabase_service.dart';
 
 /// Service untuk menyimpan dan membaca data interaksi user terhadap film:
 /// - Watched history
@@ -67,7 +68,11 @@ class MovieUserDataService {
   }
 
   /// Toggle watched status. Returns true jika sekarang di-watched, false jika di-unwatched.
-  Future<bool> toggleWatched(int movieId) async {
+  Future<bool> toggleWatched(
+    int movieId, {
+    String? movieTitle,
+    String? posterUrl,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_keyWatched) ?? [];
     final ids = raw.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
@@ -75,10 +80,12 @@ class MovieUserDataService {
     if (ids.contains(movieId)) {
       ids.remove(movieId);
       await prefs.setStringList(_keyWatched, ids.map((e) => e.toString()).toList());
+      _syncUserActivity('watched', movieId, false);
       return false;
     } else {
       ids.add(movieId);
       await prefs.setStringList(_keyWatched, ids.map((e) => e.toString()).toList());
+      _syncUserActivity('watched', movieId, true, movieTitle: movieTitle, posterUrl: posterUrl);
       return true;
     }
   }
@@ -103,7 +110,11 @@ class MovieUserDataService {
   }
 
   /// Toggle watchlist. Returns true jika sekarang di-watchlist, false jika dihapus.
-  Future<bool> toggleWatchlist(int movieId) async {
+  Future<bool> toggleWatchlist(
+    int movieId, {
+    String? movieTitle,
+    String? posterUrl,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_keyWatchlist) ?? [];
     final ids = raw.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
@@ -111,11 +122,45 @@ class MovieUserDataService {
     if (ids.contains(movieId)) {
       ids.remove(movieId);
       await prefs.setStringList(_keyWatchlist, ids.map((e) => e.toString()).toList());
+      _syncUserActivity('watchlist', movieId, false);
       return false;
     } else {
       ids.add(movieId);
       await prefs.setStringList(_keyWatchlist, ids.map((e) => e.toString()).toList());
+      _syncUserActivity('watchlist', movieId, true, movieTitle: movieTitle, posterUrl: posterUrl);
       return true;
+    }
+  }
+
+  Future<void> _syncUserActivity(
+    String actionType,
+    int movieId,
+    bool isAdding, {
+    String? movieTitle,
+    String? posterUrl,
+  }) async {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+    try {
+      if (isAdding) {
+        await supabase.from('user_activities').upsert({
+          'user_id': user.id,
+          'action_type': actionType,
+          'movie_id': movieId,
+          'movie_title': movieTitle ?? 'Film #$movieId',
+          'poster_url': posterUrl,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      } else {
+        await supabase
+            .from('user_activities')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('action_type', actionType)
+            .eq('movie_id', movieId);
+      }
+    } catch (_) {
+      // Abaikan jika tabel belum dibuat atau offline
     }
   }
 
@@ -153,6 +198,8 @@ class MovieUserDataService {
     required int movieId,
     required double rating,
     required String text,
+    String? movieTitle,
+    String? posterUrl,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final all = await getAllReviews();
@@ -168,6 +215,24 @@ class MovieUserDataService {
       (key, value) => MapEntry(key.toString(), value.toJson()),
     ));
     await prefs.setString(_keyReviews, encoded);
+
+    // Sync ke Supabase (tabel reviews)
+    final user = AuthService().currentUser;
+    if (user != null) {
+      try {
+        await supabase.from('reviews').upsert({
+          'user_id': user.id,
+          'movie_id': movieId,
+          'movie_title': movieTitle ?? 'Film #$movieId',
+          'poster_url': posterUrl,
+          'rating': rating.clamp(0.5, 5.0),
+          'text': text.trim(),
+          'created_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'user_id,movie_id');
+      } catch (_) {
+        // Abaikan jika tabel belum dibuat atau offline
+      }
+    }
   }
 
   Future<void> deleteReview(int movieId) async {
@@ -179,6 +244,18 @@ class MovieUserDataService {
       (key, value) => MapEntry(key.toString(), value.toJson()),
     ));
     await prefs.setString(_keyReviews, encoded);
+
+    // Sync delete ke Supabase
+    final user = AuthService().currentUser;
+    if (user != null) {
+      try {
+        await supabase
+            .from('reviews')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('movie_id', movieId);
+      } catch (_) {}
+    }
   }
 
   Future<bool> hasReview(int movieId) async {

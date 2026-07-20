@@ -85,53 +85,65 @@ class _SearchTabState extends State<SearchTab> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Container(
               height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: AppColors.darkTertiary,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.border, width: 0.8),
               ),
-              child: TextField(
-                controller: _controller,
-                autofocus: false,
-                onChanged: _onSearchChanged,
-                textAlignVertical: TextAlignVertical.center,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'Cari film, pengguna, aktor...',
-                  hintStyle: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  prefixIcon: const Icon(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(
                     Icons.search_rounded,
                     color: AppColors.textMuted,
                     size: 22,
                   ),
-                  suffixIcon: _hasQuery
-                      ? GestureDetector(
-                          onTap: () {
-                            _controller.clear();
-                            _onSearchChanged('');
-                          },
-                          behavior: HitTestBehavior.opaque,
-                          child: const Icon(
-                            Icons.close_rounded,
-                            color: AppColors.textMuted,
-                            size: 18,
-                          ),
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      autofocus: false,
+                      onChanged: _onSearchChanged,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: 'Cari film, pengguna, aktor...',
+                        hintStyle: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  if (_hasQuery) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        _controller.clear();
+                        _onSearchChanged('');
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: const Padding(
+                        padding: EdgeInsets.all(4.0),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: AppColors.textMuted,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
