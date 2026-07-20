@@ -101,6 +101,24 @@ class TmdbService {
     return _parse(d);
   }
 
+  /// Film berdasarkan beberapa genre (OR / pipe separated)
+  Future<List<MovieModel>> getMoviesByGenres(
+    List<int> genreIds, {
+    int page = 1,
+    String sortBy = 'popularity.desc',
+  }) async {
+    if (genreIds.isEmpty) return getTopRated(page: page);
+    final extra = <String, String>{
+      'language': 'id-ID',
+      'page': '$page',
+      'with_genres': genreIds.join('|'),
+      'sort_by': sortBy,
+      'vote_count.gte': '50',
+    };
+    final d = await _get(ApiConstants.discoverBase, extra: extra);
+    return _parse(d);
+  }
+
   /// Hidden gems: rating tinggi, vote sedikit
   Future<List<MovieModel>> getHiddenGems() async {
     final d = await _get(

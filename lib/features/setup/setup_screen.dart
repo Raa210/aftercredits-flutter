@@ -8,6 +8,7 @@ import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
 import 'package:aftercredits/core/services/user_profile_service.dart';
 import 'package:aftercredits/core/services/tmdb_service.dart';
+import 'package:aftercredits/core/services/movie_user_data_service.dart';
 import 'package:aftercredits/models/movie_model.dart';
 import 'package:aftercredits/features/home/home_screen.dart';
 
@@ -86,6 +87,25 @@ class _SetupScreenState extends State<SetupScreen> {
     }
   }
 
+  Future<void> _fetchMoviesByGenres() async {
+    setState(() => _loadingMovies = true);
+    try {
+      final movies = await _tmdb.getMoviesByGenres(_selectedGenres.toList());
+      if (mounted) {
+        setState(() {
+          _trendingMovies = movies.isNotEmpty
+              ? movies.take(24).toList()
+              : _trendingMovies;
+          _loadingMovies = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingMovies = false);
+      }
+    }
+  }
+
   // ─── Username validation ──────────────────────────────────
 
   void _onUsernameChanged(String value) {
@@ -156,6 +176,9 @@ class _SetupScreenState extends State<SetupScreen> {
 
   void _next() {
     if (_step < 3) {
+      if (_step == 2) {
+        _fetchMoviesByGenres();
+      }
       _pageController.nextPage(
         duration: const Duration(milliseconds: 450),
         curve: Curves.easeInOutCubic,
@@ -190,6 +213,15 @@ class _SetupScreenState extends State<SetupScreen> {
         favoriteGenreIds: _selectedGenres.toList(),
         favoriteMovieIds: _selectedMovies.toList(),
       );
+
+      final userDataService = MovieUserDataService();
+      for (final movieId in _selectedMovies) {
+        final alreadyWatched = await userDataService.isWatched(movieId);
+        if (!alreadyWatched) {
+          await userDataService.toggleWatched(movieId);
+        }
+        await userDataService.saveMovieGenres(movieId, _selectedGenres.toList());
+      }
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -250,7 +282,7 @@ class _SetupScreenState extends State<SetupScreen> {
   // ─── Progress header ──────────────────────────────────────
 
   Widget _buildProgressHeader() {
-    const stepLabels = ['Username', 'Foto Profil', 'Genre', 'Film Favorit'];
+    const stepLabels = ['Username', 'Foto Profil', 'Genre', 'Film Ditonton'];
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 4),
       child: Column(
@@ -258,10 +290,48 @@ class _SetupScreenState extends State<SetupScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Langkah ${_step + 1} dari 4',
-                style: const TextStyle(
-                    color: AppColors.textMuted, fontSize: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_step > 0) ...[
+                    InkWell(
+                      onTap: _isSaving
+                          ? null
+                          : () {
+                              _pageController.previousPage(
+                                duration: const Duration(milliseconds: 450),
+                                curve: Curves.easeInOutCubic,
+                              );
+                            },
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Padding(
+                        padding: EdgeInsets.only(right: 10, top: 4, bottom: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.arrow_back_rounded,
+                                color: AppColors.textPrimary, size: 18),
+                            SizedBox(width: 4),
+                            Text(
+                              'Kembali',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    'Langkah ${_step + 1} dari 4',
+                    style: const TextStyle(
+                        color: AppColors.textMuted, fontSize: 12),
+                  ),
+                ],
               ),
               // Skip avatar step
               if (_step == 1)
@@ -634,75 +704,76 @@ class _SetupScreenState extends State<SetupScreen> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: GridView.builder(
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.95,
-                ),
-                itemCount: _genres.length,
-                itemBuilder: (_, i) {
-                  final g = _genres[i];
-                  final id = g['id'] as int;
-                  final selected = _selectedGenres.contains(id);
-                  final color = Color(g['color'] as int);
-                  return GestureDetector(
-                    onTap: () => setState(() {
-                      if (selected) _selectedGenres.remove(id);
-                      else _selectedGenres.add(id);
-                    }),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? color.withOpacity(0.18)
-                            : AppColors.darkTertiary,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: selected ? color : AppColors.border,
-                          width: selected ? 2 : 1,
-                        ),
-                        boxShadow: selected
-                            ? [
-                                BoxShadow(
-                                  color: color.withOpacity(0.2),
-                                  blurRadius: 12,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(g['emoji'] as String,
-                              style: const TextStyle(fontSize: 30)),
-                          const SizedBox(height: 6),
-                          Text(
-                            g['name'] as String,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: selected
-                                  ? color
-                                  : AppColors.textSecondary,
-                              fontSize: 11,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 12,
+                  children: _genres.map((g) {
+                    final id = g['id'] as int;
+                    final selected = _selectedGenres.contains(id);
+                    final color = Color(g['color'] as int);
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        if (selected) {
+                          _selectedGenres.remove(id);
+                        } else {
+                          _selectedGenres.add(id);
+                        }
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? color.withOpacity(0.18)
+                              : AppColors.darkTertiary,
+                          borderRadius: BorderRadius.circular(50),
+                          border: Border.all(
+                            color: selected ? color : AppColors.border,
+                            width: selected ? 2 : 1,
                           ),
-                          if (selected)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Icon(Icons.check_circle_rounded,
-                                  color: color, size: 12),
+                          boxShadow: selected
+                              ? [
+                                  BoxShadow(
+                                    color: color.withOpacity(0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(g['emoji'] as String,
+                                style: const TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            Text(
+                              g['name'] as String,
+                              style: TextStyle(
+                                color: selected
+                                    ? color
+                                    : AppColors.textSecondary,
+                                fontSize: 14,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
                             ),
-                        ],
+                            if (selected) ...[
+                              const SizedBox(width: 6),
+                              Icon(Icons.check_circle_rounded,
+                                  color: color, size: 16),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ],
@@ -723,7 +794,7 @@ class _SetupScreenState extends State<SetupScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Film Favorit\nKamu 🍿',
+              'Film Yang Sudah\nKamu Tonton 👀',
               style: TextStyle(
                 fontSize: 30,
                 fontWeight: FontWeight.w900,
@@ -731,7 +802,13 @@ class _SetupScreenState extends State<SetupScreen> {
                 height: 1.15,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
+            const Text(
+              'Pilih beberapa film dari genre favoritmu yang sudah pernah kamu tonton untuk membangun profil seleramu.',
+              style: TextStyle(
+                  color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 10),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 250),
               style: TextStyle(
@@ -743,8 +820,8 @@ class _SetupScreenState extends State<SetupScreen> {
               ),
               child: Text(
                 _selectedMovies.length >= 5
-                    ? '✓ ${_selectedMovies.length} film dipilih'
-                    : 'Pilih minimal 5 film • ${_selectedMovies.length}/5',
+                    ? '✓ ${_selectedMovies.length} film sudah ditonton dipilih'
+                    : 'Pilih minimal 5 film yang pernah kamu tonton • ${_selectedMovies.length}/5',
               ),
             ),
             const SizedBox(height: 16),

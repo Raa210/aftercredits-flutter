@@ -120,6 +120,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: _buildBottomControls(),
           ),
 
+          // Back button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 24,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: _currentPage > 0 ? 1.0 : 0.0,
+              child: IgnorePointer(
+                ignoring: _currentPage == 0,
+                child: TextButton.icon(
+                  onPressed: () {
+                    if (_currentPage > 0) {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      color: AppColors.textMuted, size: 18),
+                  label: const Text(
+                    'Kembali',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           // Skip button
           Positioned(
             top: MediaQuery.of(context).padding.top + 16,
@@ -179,61 +212,95 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 28),
 
-          // Action button
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-            width: double.infinity,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: _pages[_currentPage].gradientColors,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: currentAccent.withOpacity(0.35),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: isLast
-                    ? _completeOnboarding
-                    : () => _pageController.nextPage(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOut,
-                        ),
-                borderRadius: BorderRadius.circular(16),
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isLast ? 'Mulai Sekarang' : 'Lanjut',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
+          // Action buttons
+          Row(
+            children: [
+              if (_currentPage > 0) ...[
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.darkTertiary,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _pageController.previousPage(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOut,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      child: const Center(
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: AppColors.textPrimary,
+                          size: 24,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        isLast
-                            ? Icons.rocket_launch_rounded
-                            : Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOut,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: _pages[_currentPage].gradientColors,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: currentAccent.withOpacity(0.35),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isLast
+                          ? _completeOnboarding
+                          : () => _pageController.nextPage(
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeInOut,
+                              ),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isLast ? 'Mulai Sekarang' : 'Lanjut',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              isLast
+                                  ? Icons.rocket_launch_rounded
+                                  : Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ],
       ),
