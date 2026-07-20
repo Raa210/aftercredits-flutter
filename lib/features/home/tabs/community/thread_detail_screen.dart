@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:aftercredits/core/services/community_service.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
@@ -20,6 +21,9 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
   bool _liked = false;
   bool _liking = false;
   int _likesCount = 0;
+  // ponytail: downvote only local — no DB schema change needed
+  bool _downvoted = false;
+  bool _spoilerRevealed = false;
   final _commentController = TextEditingController();
   final _commentFocusNode = FocusNode();
   bool _submittingComment = false;
@@ -360,16 +364,57 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                       const SizedBox(height: 20),
                     ],
 
-                    // Preview Content Text
-                    Text(
-                      _threadData['preview'] as String,
-                      style: const TextStyle(
-                        color: CommunityColors.textPrimary,
-                        fontSize: 15,
-                        height: 1.6,
-                        fontWeight: FontWeight.w400,
+                    // Spoiler blur for SPOILER threads
+                    if ((_threadData['tag'] as String?)?.toUpperCase() == 'SPOILER')
+                      GestureDetector(
+                        onTap: () => setState(() => _spoilerRevealed = !_spoilerRevealed),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            ImageFiltered(
+                              imageFilter: _spoilerRevealed
+                                  ? ImageFilter.blur(sigmaX: 0, sigmaY: 0)
+                                  : ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: Text(
+                                _threadData['preview'] as String,
+                                style: const TextStyle(
+                                  color: CommunityColors.textPrimary,
+                                  fontSize: 15,
+                                  height: 1.6,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                            if (!_spoilerRevealed)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.7),
+                                  borderRadius: BorderRadius.circular(CommunityRadius.pill),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.visibility_off_rounded, size: 14, color: Colors.white),
+                                    SizedBox(width: 6),
+                                    Text('Tap untuk lihat spoiler',
+                                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        _threadData['preview'] as String,
+                        style: const TextStyle(
+                          color: CommunityColors.textPrimary,
+                          fontSize: 15,
+                          height: 1.6,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 24),
 
                     // Actions Row (Likes)
@@ -379,16 +424,17 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                           decoration: BoxDecoration(
                             color: CommunityColors.card,
                             borderRadius: BorderRadius.circular(CommunityRadius.pill),
-                            border: Border.all(
-                              color: CommunityColors.divider,
-                              width: 0.5,
-                            ),
+                            border: Border.all(color: CommunityColors.divider, width: 0.5),
                           ),
                           child: Row(
                             children: [
                               InkWell(
                                 onTap: () {
-                                  if (!_liked) _toggleLike();
+                                  if (_downvoted) {
+                                    setState(() { _downvoted = false; _likesCount += 1; });
+                                  } else if (!_liked) {
+                                    _toggleLike();
+                                  }
                                 },
                                 borderRadius: const BorderRadius.horizontal(left: Radius.circular(CommunityRadius.pill)),
                                 child: Padding(
@@ -403,22 +449,34 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                               Text(
                                 '$_likesCount',
                                 style: TextStyle(
-                                  color: _liked ? CommunityColors.primary : CommunityColors.textPrimary,
+                                  color: _liked
+                                      ? CommunityColors.primary
+                                      : _downvoted
+                                          ? const Color(0xFF4FC3F7)
+                                          : CommunityColors.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               InkWell(
                                 onTap: () {
-                                  if (_liked) _toggleLike();
+                                  if (_liked) {
+                                    // Hapus upvote dulu
+                                    _toggleLike();
+                                  }
+                                  if (!_downvoted) {
+                                    setState(() { _downvoted = true; _likesCount -= 1; });
+                                  } else {
+                                    setState(() { _downvoted = false; _likesCount += 1; });
+                                  }
                                 },
                                 borderRadius: const BorderRadius.horizontal(right: Radius.circular(CommunityRadius.pill)),
-                                child: const Padding(
-                                  padding: EdgeInsets.fromLTRB(8, 8, 16, 8),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
                                   child: Icon(
                                     Icons.arrow_downward_rounded,
                                     size: 18,
-                                    color: CommunityColors.textSecondary,
+                                    color: _downvoted ? const Color(0xFF4FC3F7) : CommunityColors.textSecondary,
                                   ),
                                 ),
                               ),
@@ -577,14 +635,26 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                Text(
-                                  c['content'] as String,
-                                  style: const TextStyle(
-                                    color: CommunityColors.textSecondary,
-                                    fontSize: 13,
-                                    height: 1.4,
+                                // Deleted comment styling
+                                if (c['content'] == '[Komentar ini telah dihapus]')
+                                  const Text(
+                                    '[Komentar ini telah dihapus]',
+                                    style: TextStyle(
+                                      color: CommunityColors.textMuted,
+                                      fontSize: 13,
+                                      fontStyle: FontStyle.italic,
+                                      height: 1.4,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    c['content'] as String,
+                                    style: const TextStyle(
+                                      color: CommunityColors.textSecondary,
+                                      fontSize: 13,
+                                      height: 1.4,
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           );
