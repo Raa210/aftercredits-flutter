@@ -6,6 +6,7 @@ import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/tmdb_service.dart';
 import 'package:aftercredits/core/constants/api_constants.dart';
 import 'package:aftercredits/models/movie_model.dart';
+import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
 
 class DiscoverTab extends StatefulWidget {
   const DiscoverTab({super.key});
@@ -377,11 +378,18 @@ class _DiscoverTabState extends State<DiscoverTab> {
                 accentColor: accentColor,
                 isRevealed: _revealedAdult.contains(movie.id),
                 onTapReveal: () => _toggleAdultReveal(movie.id),
+                onTap: () => _openDetail(context, movie),
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  void _openDetail(BuildContext context, MovieModel movie) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => MovieDetailScreen(movie: movie)),
     );
   }
 
@@ -561,17 +569,29 @@ class _HeroCard extends StatelessWidget {
               Row(
                 children: [
                   _HeroBtn(
-                    label: 'Tonton',
-                    icon: Icons.play_arrow_rounded,
+                    label: 'Detail',
+                    icon: Icons.info_outline_rounded,
                     isPrimary: true,
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MovieDetailScreen(movie: movie),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(width: 8),
                   _HeroBtn(
                     label: 'Watchlist',
                     icon: Icons.bookmark_add_outlined,
                     isPrimary: false,
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MovieDetailScreen(movie: movie),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -728,12 +748,14 @@ class _MovieCardWidget extends StatefulWidget {
   final Color accentColor;
   final bool isRevealed;
   final VoidCallback onTapReveal;
+  final VoidCallback? onTap;
 
   const _MovieCardWidget({
     required this.movie,
     required this.accentColor,
     required this.isRevealed,
     required this.onTapReveal,
+    this.onTap,
   });
 
   @override
@@ -748,7 +770,13 @@ class _MovieCardWidgetState extends State<_MovieCardWidget> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: widget.movie.adult ? widget.onTapReveal : () {},
+      onTap: () {
+        if (widget.movie.adult && !widget.isRevealed) {
+          widget.onTapReveal();
+        } else {
+          widget.onTap?.call();
+        }
+      },
       child: MouseRegion(
         onEnter: (_) {
           if (widget.movie.adult) setState(() => _hovered = true);
