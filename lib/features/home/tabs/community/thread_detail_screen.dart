@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:aftercredits/core/services/community_service.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
-import 'package:aftercredits/core/theme/app_theme.dart';
 import 'community_colors.dart';
+import 'user_profile_screen.dart';
 
 class ThreadDetailScreen extends StatefulWidget {
   final Map<String, dynamic> thread;
@@ -217,6 +217,19 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
     }
   }
 
+  void _openUserProfile(String userId, String username, String? avatarUrl) {
+    if (userId.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(
+          userId: userId,
+          username: username,
+          avatarUrl: avatarUrl,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final posterUrl = _threadData['posterUrl'] as String?;
@@ -255,37 +268,48 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                     // Top Info Row (Author + Time)
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: CommunityColors.divider,
-                          backgroundImage: _threadData['author_avatar'] != null
-                              ? NetworkImage(_threadData['author_avatar'] as String)
-                              : null,
-                          child: _threadData['author_avatar'] == null
-                              ? const Icon(Icons.person_rounded,
-                                  color: CommunityColors.textSecondary, size: 20)
-                              : null,
-                        ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '@${_threadData['author']}',
-                              style: const TextStyle(
-                                color: CommunityColors.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                        GestureDetector(
+                          onTap: () => _openUserProfile(
+                            _threadData['author_id'] as String? ?? '',
+                            _threadData['author'] as String? ?? '',
+                            _threadData['author_avatar'] as String?,
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: CommunityColors.divider,
+                                backgroundImage: _threadData['author_avatar'] != null
+                                    ? NetworkImage(_threadData['author_avatar'] as String)
+                                    : null,
+                                child: _threadData['author_avatar'] == null
+                                    ? const Icon(Icons.person_rounded,
+                                        color: CommunityColors.textSecondary, size: 20)
+                                    : null,
                               ),
-                            ),
-                            Text(
-                              _threadData['time'] as String,
-                              style: const TextStyle(
-                                color: CommunityColors.textMuted,
-                                fontSize: 12,
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '@${_threadData['author']}',
+                                    style: const TextStyle(
+                                      color: CommunityColors.textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    _threadData['time'] as String,
+                                    style: const TextStyle(
+                                      color: CommunityColors.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const Spacer(),
 
@@ -459,7 +483,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                               color: CommunityColors.card,
                               borderRadius: BorderRadius.circular(CommunityRadius.md),
                               border: Border.all(
-                                color: CommunityColors.divider.withOpacity(0.5),
+                                color: CommunityColors.divider.withValues(alpha: 0.5),
                                 width: 0.5,
                               ),
                             ),
@@ -468,24 +492,35 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: CommunityColors.divider,
-                                      backgroundImage: c['author_avatar'] != null
-                                          ? NetworkImage(c['author_avatar'] as String)
-                                          : null,
-                                      child: c['author_avatar'] == null
-                                          ? const Icon(Icons.person_rounded,
-                                              color: CommunityColors.textSecondary, size: 12)
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '@${c['author']}',
-                                      style: const TextStyle(
-                                        color: CommunityColors.textPrimary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                    GestureDetector(
+                                      onTap: () => _openUserProfile(
+                                        c['author_id'] as String? ?? '',
+                                        c['author'] as String? ?? '',
+                                        c['author_avatar'] as String?,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 12,
+                                            backgroundColor: CommunityColors.divider,
+                                            backgroundImage: c['author_avatar'] != null
+                                                ? NetworkImage(c['author_avatar'] as String)
+                                                : null,
+                                            child: c['author_avatar'] == null
+                                                ? const Icon(Icons.person_rounded,
+                                                    color: CommunityColors.textSecondary, size: 12)
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '@${c['author']}',
+                                            style: const TextStyle(
+                                              color: CommunityColors.textPrimary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     const Spacer(),

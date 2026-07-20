@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
 class CommunityService {
@@ -240,6 +239,8 @@ class CommunityService {
         'content': map['content'],
         'time': _formatTimeAgo(DateTime.parse(map['created_at'] as String)),
         'created_at_raw': map['created_at'],
+        // parent_id tersedia jika kolom sudah ada di DB (untuk cascade delete)
+        'parent_id': map['parent_id'],
       };
     }).toList();
   }
@@ -270,11 +271,62 @@ class CommunityService {
     final user = supabase.auth.currentUser;
     if (user == null) throw Exception('Silakan masuk terlebih dahulu');
 
+    // Hapus komentar induk — jika DB sudah memiliki kolom parent_id dengan
+    // ON DELETE CASCADE, balasan akan terhapus otomatis.
+    // Jika belum, kita hapus juga secara manual komentar dengan parent_id ini.
+    try {
+      await supabase
+          .from('comments')
+          .delete()
+          .eq('parent_id', commentId);
+    } catch (_) {
+      // Abaikan error jika kolom parent_id belum ada di DB
+    }
+
     await supabase
         .from('comments')
         .delete()
         .eq('id', commentId)
         .eq('author_id', user.id);
+  }
+
+  // ─── Threads by User ──────────────────────────────────────
+
+  /// Mengambil semua thread yang dibuat oleh [userId].
+  Future<List<Map<String, dynamic>>> getThreadsByUser(String userId) async {
+    final response = await supabase.from('threads').select('''
+      *,
+      author:profiles(username, avatar_url),
+      likes_count:thread_likes(count),
+      comments_count:comments(count)
+    ''').eq('author_id', userId).order('created_at', ascending: false);
+
+    final List<dynamic> data = response as List<dynamic>? ?? [];
+
+    return data.map((item) {
+      final map = Map<String, dynamic>.from(item as Map);
+      final authorData = map['author'] as Map?;
+      final authorName = authorData?['username'] as String? ?? 'Anonymous';
+      final avatarUrl = authorData?['avatar_url'] as String?;
+
+      return {
+        'id': map['id'],
+        'title': map['title'],
+        'preview': map['preview'],
+        'author': authorName,
+        'author_avatar': avatarUrl,
+        'author_id': map['author_id'],
+        'time': _formatTimeAgo(DateTime.parse(map['created_at'] as String)),
+        'likes': _parseCount(map['likes_count']),
+        'comments': _parseCount(map['comments_count']),
+        'views': map['views_count'] as int? ?? 0,
+        'tag': map['tag'],
+        'tagColor': map['tag_color'] as int? ?? 0xFFE50914,
+        'movie': map['movie_title'],
+        'movie_id': map['movie_id'],
+        'posterUrl': map['poster_url'],
+      };
+    }).toList();
   }
 
   // ─── Trending & Popular Sidebar ───────────────────────────
