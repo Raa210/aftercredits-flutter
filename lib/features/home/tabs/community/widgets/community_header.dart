@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/features/home/tabs/community/community_colors.dart';
 
 /// Header responsif Community page.
 ///
 /// Desktop: 3 bagian sejajar (Judul | Search | Tombol).
 /// Mobile:  Stack vertikal.
-class CommunityHeader extends StatelessWidget {
+class CommunityHeader extends StatefulWidget {
   final VoidCallback? onCreateThread;
   final ValueChanged<String>? onSearch;
 
@@ -14,6 +15,20 @@ class CommunityHeader extends StatelessWidget {
     this.onCreateThread,
     this.onSearch,
   });
+
+  @override
+  State<CommunityHeader> createState() => _CommunityHeaderState();
+}
+
+class _CommunityHeaderState extends State<CommunityHeader> {
+  final TextEditingController _controller = TextEditingController();
+  bool _hasQuery = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,44 +140,54 @@ class CommunityHeader extends StatelessWidget {
     return Container(
       height: 50,
       decoration: BoxDecoration(
-        color: CommunityColors.searchBar,
-        borderRadius: BorderRadius.circular(CommunityRadius.pill),
-        border: Border.all(
-          color: CommunityColors.searchBarBorder,
-          width: 1,
-        ),
+        color: AppColors.darkTertiary,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, width: 0.8),
       ),
       child: TextField(
-        onChanged: onSearch,
+        controller: _controller,
+        onChanged: (val) {
+          setState(() => _hasQuery = val.isNotEmpty);
+          widget.onSearch?.call(val);
+        },
+        textAlignVertical: TextAlignVertical.center,
         style: const TextStyle(
-          color: CommunityColors.textPrimary,
+          color: AppColors.textPrimary,
           fontSize: 14,
+          fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
+          isDense: true,
           hintText: 'Cari diskusi atau pengguna...',
           hintStyle: const TextStyle(
-            color: CommunityColors.textMuted,
+            color: AppColors.textMuted,
             fontSize: 14,
+            fontWeight: FontWeight.w400,
           ),
-          prefixIcon: const Padding(
-            padding: EdgeInsets.only(left: 16, right: 8),
-            child: Icon(
-              Icons.search_rounded,
-              color: CommunityColors.textMuted,
-              size: 20,
-            ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppColors.textMuted,
+            size: 22,
           ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 44,
-            minHeight: 44,
-          ),
+          suffixIcon: _hasQuery
+              ? GestureDetector(
+                  onTap: () {
+                    _controller.clear();
+                    setState(() => _hasQuery = false);
+                    widget.onSearch?.call('');
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textMuted,
+                    size: 18,
+                  ),
+                )
+              : null,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: CommunitySpacing.md,
-            vertical: 14,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
     );
@@ -170,9 +195,9 @@ class CommunityHeader extends StatelessWidget {
 
   Widget _buildCreateButton() {
     return SizedBox(
-      height: 50,
+      height: 48,
       child: ElevatedButton.icon(
-        onPressed: onCreateThread ?? () {},
+        onPressed: widget.onCreateThread ?? () {},
         icon: const Icon(Icons.add_rounded, size: 20),
         label: const Text('Buat Thread'),
         style: ElevatedButton.styleFrom(
@@ -186,10 +211,11 @@ class CommunityHeader extends StatelessWidget {
             letterSpacing: 0,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(CommunityRadius.pill),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
     );
   }
 }
+

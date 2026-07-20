@@ -68,7 +68,7 @@ class TmdbService {
 
   Future<List<MovieModel>> searchMovies(String query, {int page = 1}) async {
     final d = await _get(ApiConstants.searchMovies(query),
-        extra: {'language': 'id-ID', 'page': '$page'});
+        extra: {'language': 'id-ID', 'page': '$page', 'include_adult': 'false'});
     return _parse(d);
   }
 
@@ -96,6 +96,7 @@ class TmdbService {
     if (minVoteAverage != null) {
       extra['vote_average.gte'] = '$minVoteAverage';
     }
+    extra['include_adult'] = 'false';
 
     final d = await _get(ApiConstants.discoverBase, extra: extra);
     return _parse(d);
@@ -114,6 +115,7 @@ class TmdbService {
       'with_genres': genreIds.join('|'),
       'sort_by': sortBy,
       'vote_count.gte': '50',
+      'include_adult': 'false',
     };
     final d = await _get(ApiConstants.discoverBase, extra: extra);
     return _parse(d);
@@ -129,6 +131,7 @@ class TmdbService {
         'vote_count.gte': '100',
         'vote_count.lte': '3000',
         'vote_average.gte': '7.5',
+        'include_adult': 'false',
       },
     );
     return _parse(d);

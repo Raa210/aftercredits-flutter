@@ -83,60 +83,56 @@ class _SearchTabState extends State<SearchTab> {
           // Search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.darkTertiary,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border, width: 0.5),
-                    ),
-                    child: Row(
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 14),
-                          child: Icon(Icons.search_rounded,
-                              color: AppColors.textMuted, size: 20),
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            autofocus: false,
-                            onChanged: _onSearchChanged,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 14,
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: 'Cari film, pengguna, aktor...',
-                              hintStyle: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 14,
-                              ),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding:
-                                  EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
-                        ),
-                        if (_hasQuery)
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded,
-                                color: AppColors.textMuted, size: 18),
-                            onPressed: () {
-                              _controller.clear();
-                              _onSearchChanged('');
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.darkTertiary,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border, width: 0.8),
+              ),
+              child: TextField(
+                controller: _controller,
+                autofocus: false,
+                onChanged: _onSearchChanged,
+                textAlignVertical: TextAlignVertical.center,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'Cari film, pengguna, aktor...',
+                  hintStyle: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppColors.textMuted,
+                    size: 22,
+                  ),
+                  suffixIcon: _hasQuery
+                      ? GestureDetector(
+                          onTap: () {
+                            _controller.clear();
+                            _onSearchChanged('');
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.textMuted,
+                            size: 18,
+                          ),
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
             ),
           ),
 

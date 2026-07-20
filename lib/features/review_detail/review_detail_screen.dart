@@ -258,7 +258,7 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
                     ? NetworkImage(widget.review.authorAvatar!)
                     : null,
                 child: widget.review.authorAvatar == null
-                    ? Text(widget.review.authorName[0].toUpperCase(),
+                    ? Text(widget.review.authorName.isNotEmpty ? widget.review.authorName[0].toUpperCase() : '?',
                         style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold))
                     : null,
               ),
@@ -419,37 +419,54 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
   }
 
   Widget _buildInputBar() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).padding.bottom + 10),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, bottomInset > 0 ? bottomInset + 8 : 12),
       decoration: BoxDecoration(
         color: AppColors.darkSecondary,
-        border: const Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(50),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+        border: const Border(top: BorderSide(color: AppColors.border, width: 0.6)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Container(
-              height: 40,
+              constraints: const BoxConstraints(minHeight: 46, maxHeight: 120),
               decoration: BoxDecoration(
                 color: AppColors.darkTertiary,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border, width: 0.5),
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(color: AppColors.border, width: 0.8),
               ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-                      decoration: const InputDecoration(
-                        hintText: 'Tulis komentar/balasan...',
-                        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                        border: InputBorder.none,
-                      ),
-                    ),
+              child: TextField(
+                controller: _commentController,
+                minLines: 1,
+                maxLines: 4,
+                textAlignVertical: TextAlignVertical.center,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Tulis komentar/balasan...',
+                  hintStyle: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
                   ),
-                ],
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                ),
               ),
             ),
           ),
@@ -457,20 +474,28 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
           GestureDetector(
             onTap: _submittingComment ? null : _postComment,
             child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
                 color: AppColors.accentRed,
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.accentRed.withAlpha(80),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: _submittingComment
                   ? const Center(
                       child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 1.5)),
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2)),
                     )
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             ),
           ),
         ],

@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/tmdb_service.dart';
 import 'package:aftercredits/core/services/review_community_service.dart';
+import 'package:aftercredits/core/services/movie_user_data_service.dart';
+import 'package:aftercredits/core/services/auth_service.dart';
 import 'package:aftercredits/core/constants/api_constants.dart';
 import 'package:aftercredits/models/movie_model.dart';
 import 'package:aftercredits/models/community_review_model.dart';
 import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
 import 'package:aftercredits/features/review_detail/review_detail_screen.dart';
+import 'package:aftercredits/features/home/see_all_movies_screen.dart';
 
 class DiscoverTab extends StatefulWidget {
   const DiscoverTab({super.key});
@@ -202,6 +206,23 @@ class _DiscoverTabState extends State<DiscoverTab> {
               )
             else ...[
 
+              // 1. Review Populer Minggu Ini
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
+                  child: _SectionHeader(
+                    title: 'Review Populer Minggu Ini',
+                    icon: Icons.star_rounded,
+                    iconColor: AppColors.star,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _genreLoading
+                    ? _buildLoadingBox()
+                    : _buildReviewRow(_popularReviews),
+              ),
+
               // 2. Film Populer Minggu Ini
               SliverToBoxAdapter(
                 child: Padding(
@@ -210,6 +231,15 @@ class _DiscoverTabState extends State<DiscoverTab> {
                     title: 'Film Populer Minggu Ini',
                     icon: Icons.local_fire_department_rounded,
                     iconColor: AppColors.accentRed,
+                    onSeeAll: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SeeAllMoviesScreen(
+                          title: 'Film Populer Minggu Ini',
+                          initialMovies: _popularMovies,
+                          accentColor: AppColors.accentRed,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -227,6 +257,15 @@ class _DiscoverTabState extends State<DiscoverTab> {
                     title: 'Film yang Sedang Tayang',
                     icon: Icons.play_circle_fill_rounded,
                     iconColor: const Color(0xFF3B82F6),
+                    onSeeAll: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SeeAllMoviesScreen(
+                          title: 'Film yang Sedang Tayang',
+                          initialMovies: _nowPlayingMovies,
+                          accentColor: const Color(0xFF3B82F6),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -236,6 +275,22 @@ class _DiscoverTabState extends State<DiscoverTab> {
                     : _buildMoviesRow(_nowPlayingMovies, accentColor: const Color(0xFF3B82F6)),
               ),
 
+              // 4. Aktivitas Teman / Following
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
+                  child: _SectionHeader(
+                    title: 'Aktivitas Teman',
+                    icon: Icons.people_alt_rounded,
+                    iconColor: const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _genreLoading
+                    ? _buildLoadingBox()
+                    : _buildFriendActivities(_friendActivities),
+              ),
 
               // 5. Hidden Gems
               SliverToBoxAdapter(
@@ -245,6 +300,17 @@ class _DiscoverTabState extends State<DiscoverTab> {
                     title: 'Hidden Gems 💎',
                     icon: Icons.auto_awesome_rounded,
                     iconColor: const Color(0xFF7C3AED),
+                    onSeeAll: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SeeAllMoviesScreen(
+                          title: 'Hidden Gems 💎',
+                          initialMovies: _hiddenGems,
+                          accentColor: const Color(0xFF7C3AED),
+                          enableGenreFilter: true,
+                          sectionType: SectionType.hiddenGems,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -274,7 +340,24 @@ class _DiscoverTabState extends State<DiscoverTab> {
   }
 
   Widget _buildReviewRow(List<CommunityReviewModel> reviews) {
-    if (reviews.isEmpty) return const SizedBox.shrink();
+    if (reviews.isEmpty) {
+      return Container(
+        height: 110,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.darkSecondary,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'Belum ada review populer saat ini.\nTulis review film pertama Anda untuk menampilkannya di sini!',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+        ),
+      );
+    }
     return SizedBox(
       height: 190,
       child: ListView.builder(
@@ -320,7 +403,7 @@ class _DiscoverTabState extends State<DiscoverTab> {
                           backgroundColor: AppColors.darkTertiary,
                           backgroundImage: review.authorAvatar != null ? NetworkImage(review.authorAvatar!) : null,
                           child: review.authorAvatar == null
-                              ? Text(review.authorName[0].toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold))
+                              ? Text(review.authorName.isNotEmpty ? review.authorName[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold))
                               : null,
                         ),
                         const SizedBox(width: 8),
@@ -367,7 +450,23 @@ class _DiscoverTabState extends State<DiscoverTab> {
   }
 
   Widget _buildFriendActivities(List<Map<String, dynamic>> activities) {
-    if (activities.isEmpty) return const SizedBox.shrink();
+    if (activities.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.darkSecondary,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'Belum ada aktivitas dari teman yang Anda ikuti.\nMulai ikuti pengguna lain untuk melihat aktivitas film mereka di sini!',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -628,9 +727,65 @@ class _GenreItem {
 // Hero card — full backdrop + info overlay
 // ═════════════════════════════════════════════════════════════
 
-class _HeroCard extends StatelessWidget {
+class _HeroCard extends StatefulWidget {
   final MovieModel movie;
   const _HeroCard({required this.movie});
+
+  @override
+  State<_HeroCard> createState() => _HeroCardState();
+}
+
+class _HeroCardState extends State<_HeroCard> {
+  bool _isInWatchlist = false;
+  bool _toggling = false;
+  final MovieUserDataService _userData = MovieUserDataService();
+
+  @override
+  void initState() {
+    super.initState();
+    _userData.isInWatchlist(widget.movie.id).then((val) {
+      if (mounted) setState(() => _isInWatchlist = val);
+    });
+  }
+
+  Future<void> _toggleWatchlist() async {
+    if (_toggling) return;
+    if (AuthService().currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Masuk terlebih dahulu untuk menggunakan fitur ini',
+              style: TextStyle(color: Colors.white, fontSize: 13)),
+          backgroundColor: AppColors.darkTertiary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    HapticFeedback.lightImpact();
+    setState(() => _toggling = true);
+    final nowIn = await _userData.toggleWatchlist(widget.movie.id);
+    if (!mounted) return;
+    setState(() {
+      _isInWatchlist = nowIn;
+      _toggling = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          nowIn ? 'Ditambahkan ke Watchlist ✓' : 'Dihapus dari Watchlist',
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+        ),
+        backgroundColor: AppColors.darkTertiary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -638,8 +793,8 @@ class _HeroCard extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         // Backdrop
-        movie.backdropUrl != null
-            ? _NetImg(url: movie.backdropUrl!, fit: BoxFit.cover)
+        widget.movie.backdropUrl != null
+            ? _NetImg(url: widget.movie.backdropUrl!, fit: BoxFit.cover)
             : Container(color: AppColors.darkSecondary),
 
         // Gradient
@@ -715,7 +870,7 @@ class _HeroCard extends StatelessWidget {
 
               // Title
               Text(
-                movie.title,
+                widget.movie.title,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
@@ -730,7 +885,7 @@ class _HeroCard extends StatelessWidget {
               // Meta
               Row(
                 children: [
-                  Text(movie.year,
+                  Text(widget.movie.year,
                       style: const TextStyle(
                           color: AppColors.textSecondary, fontSize: 11)),
                   _dot(),
@@ -738,7 +893,7 @@ class _HeroCard extends StatelessWidget {
                       style: TextStyle(color: AppColors.star, fontSize: 10)),
                   const SizedBox(width: 2),
                   Text(
-                    movie.ratingFormatted,
+                    widget.movie.ratingFormatted,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
@@ -747,7 +902,7 @@ class _HeroCard extends StatelessWidget {
                   ),
                   _dot(),
                   Text(
-                    _fmtVotes(movie.voteCount),
+                    _fmtVotes(widget.movie.voteCount),
                     style: const TextStyle(
                         color: AppColors.textMuted, fontSize: 10),
                   ),
@@ -765,23 +920,19 @@ class _HeroCard extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => MovieDetailScreen(movie: movie),
+                          builder: (_) => MovieDetailScreen(movie: widget.movie),
                         ),
                       );
                     },
                   ),
                   const SizedBox(width: 8),
                   _HeroBtn(
-                    label: 'Watchlist',
-                    icon: Icons.bookmark_add_outlined,
+                    label: _isInWatchlist ? 'Tersimpan' : 'Watchlist',
+                    icon: _isInWatchlist
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_add_outlined,
                     isPrimary: false,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MovieDetailScreen(movie: movie),
-                        ),
-                      );
-                    },
+                    onTap: _toggleWatchlist,
                   ),
                 ],
               ),
@@ -790,7 +941,7 @@ class _HeroCard extends StatelessWidget {
         ),
 
         // Poster thumb top-right
-        if (movie.posterUrl != null)
+        if (widget.movie.posterUrl != null)
           Positioned(
             bottom: 30,
             right: 16,
@@ -806,7 +957,7 @@ class _HeroCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: _NetImg(url: movie.posterUrl!, width: 55, height: 82),
+                child: _NetImg(url: widget.movie.posterUrl!, width: 55, height: 82),
               ),
             ),
           ),
@@ -879,11 +1030,13 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color iconColor;
+  final VoidCallback? onSeeAll;
 
   const _SectionHeader({
     required this.title,
     required this.icon,
     required this.iconColor,
+    this.onSeeAll,
   });
 
   @override
@@ -912,17 +1065,18 @@ class _SectionHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          GestureDetector(
-            onTap: () {},
-            child: Text(
-              'Lihat Semua',
-              style: TextStyle(
-                color: iconColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+          if (onSeeAll != null)
+            GestureDetector(
+              onTap: onSeeAll,
+              child: Text(
+                'Lihat Semua',
+                style: TextStyle(
+                  color: iconColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

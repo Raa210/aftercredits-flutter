@@ -16,6 +16,8 @@ import 'package:aftercredits/features/auth/login_screen.dart';
 import 'community/community_colors.dart';
 import 'community/thread_detail_screen.dart';
 import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
+import 'package:aftercredits/models/community_review_model.dart';
+import 'package:aftercredits/features/review_detail/review_detail_screen.dart';
 import 'settings_screen.dart';
 
 // ─── Reverse map: genre ID → nama ────────────────────────
@@ -521,7 +523,10 @@ class _ProfileTabState extends State<ProfileTab> {
                   onMovieTap: (movie) => _openDetail(context, movie),
                 ),
                 _buildTasteProfileTab(),
-                _ReviewsTab(userData: _userData),
+                _ReviewsTab(
+                  userData: _userData,
+                  profile: _profile,
+                ),
               ],
             ),
           ),
@@ -870,8 +875,9 @@ class _HistoryTabState extends State<_HistoryTab>
 
 class _ReviewsTab extends StatefulWidget {
   final MovieUserDataService userData;
+  final UserProfileModel? profile;
 
-  const _ReviewsTab({required this.userData});
+  const _ReviewsTab({required this.userData, this.profile});
 
   @override
   State<_ReviewsTab> createState() => _ReviewsTabState();
@@ -953,7 +959,93 @@ class _ReviewsTabState extends State<_ReviewsTab>
       itemBuilder: (_, i) {
         final movie = _items[i]['movie'] as MovieModel;
         final review = _items[i]['review'] as MovieReview;
-        return _ReviewListTile(movie: movie, review: review);
+        return _ReviewListTile(
+          movie: movie,
+          review: review,
+          onTap: () {
+            final currentUser = AuthService().currentUser;
+            final username = widget.profile?.username ?? currentUser?.email?.split('@').first ?? 'Kamu';
+            final avatarUrl = widget.profile?.avatarUrl;
+            
+            final now = DateTime.now();
+            final diff = now.difference(review.createdAt);
+            String timeLabel;
+            if (diff.inMinutes < 60) {
+              timeLabel = '${diff.inMinutes <= 0 ? 1 : diff.inMinutes} menit lalu';
+            } else if (diff.inHours < 24) {
+              timeLabel = '${diff.inHours} jam lalu';
+            } else if (diff.inDays < 7) {
+              timeLabel = '${diff.inDays} hari lalu';
+            } else {
+              timeLabel = '${review.createdAt.day}/${review.createdAt.month}/${review.createdAt.year}';
+            }
+
+            final communityReview = CommunityReviewModel(
+              id: 'user_rev_${review.movieId}',
+              movieId: review.movieId,
+              movieTitle: movie.title,
+              posterUrl: movie.posterUrl,
+              authorName: username,
+              authorAvatar: avatarUrl,
+              rating: review.rating,
+              text: review.text,
+              likesCount: 0,
+              timeLabel: timeLabel,
+              isUserReview: true,
+            );
+
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ReviewDetailScreen(review: communityReview),
+              ),
+            ).then((_) {
+              _load();
+            });
+          },
+          onEdit: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MovieDetailScreen(movie: movie),
+              ),
+            ).then((_) => _load());
+          },
+          onDelete: () {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: AppColors.darkSecondary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                title: const Text('Hapus Review', style: TextStyle(color: AppColors.textPrimary)),
+                content: const Text('Apakah kamu yakin ingin menghapus review untuk film ini?',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      await widget.userData.deleteReview(movie.id);
+                      if (mounted) {
+                        _load();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Review berhasil dihapus', style: TextStyle(color: Colors.white)),
+                            backgroundColor: AppColors.darkTertiary,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('Hapus', style: TextStyle(color: AppColors.accentRed, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -1199,80 +1291,127 @@ class _MovieListTile extends StatelessWidget {
 class _ReviewListTile extends StatelessWidget {
   final MovieModel movie;
   final MovieReview review;
+  final VoidCallback? onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
-  const _ReviewListTile({required this.movie, required this.review});
+  const _ReviewListTile({
+    required this.movie,
+    required this.review,
+    this.onTap,
+    this.onEdit,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: movie.posterUrl != null
-                ? Image.network(
-                    movie.posterUrl!,
-                    width: 40,
-                    height: 60,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: movie.posterUrl != null
+                  ? Image.network(
+                      movie.posterUrl!,
+                      width: 40,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 40, height: 60,
+                        color: AppColors.darkTertiary,
+                        child: const Icon(Icons.movie_outlined, size: 18, color: AppColors.textMuted),
+                      ),
+                    )
+                  : Container(
                       width: 40, height: 60,
                       color: AppColors.darkTertiary,
                       child: const Icon(Icons.movie_outlined, size: 18, color: AppColors.textMuted),
                     ),
-                  )
-                : Container(
-                    width: 40, height: 60,
-                    color: AppColors.darkTertiary,
-                    child: const Icon(Icons.movie_outlined, size: 18, color: AppColors.textMuted),
-                  ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  movie.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: List.generate(5, (i) {
-                    final isFull = review.rating >= i + 1;
-                    final isHalf = !isFull && review.rating >= i + 0.5;
-                    return Icon(
-                      isFull ? Icons.star_rounded : isHalf ? Icons.star_half_rounded : Icons.star_border_rounded,
-                      color: (isFull || isHalf) ? AppColors.star : AppColors.border,
-                      size: 13,
-                    );
-                  }),
-                ),
-                if (review.text.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    review.text,
-                    maxLines: 2,
+                    movie.title,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 11,
-                      height: 1.4,
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: List.generate(5, (i) {
+                      final isFull = review.rating >= i + 1;
+                      final isHalf = !isFull && review.rating >= i + 0.5;
+                      return Icon(
+                        isFull ? Icons.star_rounded : isHalf ? Icons.star_half_rounded : Icons.star_border_rounded,
+                        color: (isFull || isHalf) ? AppColors.star : AppColors.border,
+                        size: 13,
+                      );
+                    }),
+                  ),
+                  if (review.text.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      review.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            if (onEdit != null || onDelete != null)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 18),
+                color: AppColors.darkSecondary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onSelected: (val) {
+                  if (val == 'edit') onEdit?.call();
+                  if (val == 'delete') onDelete?.call();
+                },
+                itemBuilder: (_) => [
+                  if (onEdit != null)
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, color: AppColors.textPrimary, size: 18),
+                          SizedBox(width: 8),
+                          Text('Edit Review', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  if (onDelete != null)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, color: AppColors.accentRed, size: 18),
+                          SizedBox(width: 8),
+                          Text('Hapus', style: TextStyle(color: AppColors.accentRed, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }

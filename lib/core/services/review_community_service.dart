@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aftercredits/models/community_review_model.dart';
 import 'package:aftercredits/core/services/movie_user_data_service.dart';
 import 'package:aftercredits/core/services/auth_service.dart';
+import 'package:aftercredits/core/services/user_profile_service.dart';
 
 class ReviewCommunityService {
   static final ReviewCommunityService _instance = ReviewCommunityService._internal();
@@ -76,29 +77,52 @@ class ReviewCommunityService {
     final userReviews = await userDataService.getAllReviews();
     final currentUser = AuthService().currentUser;
     
-    // Gunakan info username jika ada
-    final username = currentUser?.email?.split('@').first ?? 'Kamu';
+    // Ambil profil lengkap dari Supabase untuk username & avatar
+    String username = currentUser?.email?.split('@').first ?? 'Kamu';
+    String? avatarUrl;
+    if (currentUser != null) {
+      try {
+        final profile = await UserProfileService().getProfile(currentUser.id);
+        if (profile != null) {
+          username = profile.username.isNotEmpty ? profile.username : username;
+          avatarUrl = profile.avatarUrl;
+        }
+      } catch (_) {
+        // Gunakan fallback jika gagal
+      }
+    }
 
     for (final entry in userReviews.entries) {
       final rev = entry.value;
-      // Ambil detail poster minimal (atau bisa kosong, detail page akan meload detail TMDB)
+      
+      final now = DateTime.now();
+      final diff = now.difference(rev.createdAt);
+      String timeLabel;
+      if (diff.inMinutes < 60) {
+        timeLabel = '${diff.inMinutes <= 0 ? 1 : diff.inMinutes} menit lalu';
+      } else if (diff.inHours < 24) {
+        timeLabel = '${diff.inHours} jam lalu';
+      } else if (diff.inDays < 7) {
+        timeLabel = '${diff.inDays} hari lalu';
+      } else {
+        timeLabel = '${rev.createdAt.day}/${rev.createdAt.month}/${rev.createdAt.year}';
+      }
+
       list.add(CommunityReviewModel(
         id: 'user_rev_${rev.movieId}',
         movieId: rev.movieId,
-        movieTitle: 'Film #${rev.movieId}', // Fallback title
+        movieTitle: 'Film #${rev.movieId}',
         authorName: username,
+        authorAvatar: avatarUrl,
         rating: rev.rating,
         text: rev.text,
-        likesCount: 0, // Like awal ulasan user
-        timeLabel: 'Baru saja',
+        likesCount: 0,
+        timeLabel: timeLabel,
         isUserReview: true,
       ));
     }
 
-    // 2. Gabungkan dengan mock reviews
-    list.addAll(_mockReviews);
-
-    // 3. Tambahkan status likes yang tersimpan di lokal ke setiap item
+    // Tambahkan status likes yang tersimpan di lokal
     final likedIds = await getLikedReviewIds();
     final results = list.map((r) {
       final isLiked = likedIds.contains(r.id);
@@ -143,25 +167,63 @@ class ReviewCommunityService {
   Future<List<Map<String, dynamic>>> getComments(String reviewId) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_keyReviewComments);
-    if (raw == null || raw.isEmpty) return _getMockComments(reviewId);
+    List<Map<String, dynamic>> allComments;
 
-    try {
-      final Map<String, dynamic> decoded = json.decode(raw) as Map<String, dynamic>;
-      final listRaw = decoded[reviewId] as List<dynamic>? ?? [];
-      final localComments = listRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    if (raw == null || raw.isEmpty) {
+      allComments = _getMockComments(reviewId);
+    } else {
+      try {
+        final Map<String, dynamic> decoded = json.decode(raw) as Map<String, dynamic>;
+        final listRaw = decoded[reviewId] as List<dynamic>? ?? [];
+        final localComments = listRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 
-      // Gabungkan mock comments + local comments
-      final allComments = _getMockComments(reviewId)..addAll(localComments);
-      return allComments;
-    } catch (_) {
-      return _getMockComments(reviewId);
+        allComments = _getMockComments(reviewId)..addAll(localComments);
+      } catch (_) {
+        allComments = _getMockComments(reviewId);
+      }
     }
+
+    // Jika ada komentar lokal dari user saat ini yang sebelumnya menggunakan email prefix, ganti dengan username aktual dari profil
+    final user = AuthService().currentUser;
+    if (user != null) {
+      String? actualUsername;
+      String? actualAvatar;
+      try {
+        final profile = await UserProfileService().getProfile(user.id);
+        if (profile != null && profile.username.isNotEmpty) {
+          actualUsername = profile.username;
+          actualAvatar = profile.avatarUrl;
+        }
+      } catch (_) {}
+
+      if (actualUsername != null) {
+        final emailPrefix = user.email?.split('@').first;
+        for (var c in allComments) {
+          if (c['author'] == emailPrefix || c['author'] == 'User' || c['author'] == 'Kamu') {
+            c['author'] = actualUsername;
+            if (actualAvatar != null) c['avatar'] = actualAvatar;
+          }
+        }
+      }
+    }
+
+    return allComments;
   }
 
   Future<void> addComment(String reviewId, String content) async {
     final user = AuthService().currentUser;
-    final username = user?.email?.split('@').first ?? 'User';
-    final avatarUrl = user?.userMetadata?['avatar_url'] as String?;
+    String username = user?.email?.split('@').first ?? 'User';
+    String? avatarUrl = user?.userMetadata?['avatar_url'] as String?;
+
+    if (user != null) {
+      try {
+        final profile = await UserProfileService().getProfile(user.id);
+        if (profile != null) {
+          username = profile.username.isNotEmpty ? profile.username : username;
+          avatarUrl = profile.avatarUrl ?? avatarUrl;
+        }
+      } catch (_) {}
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_keyReviewComments);
@@ -219,43 +281,7 @@ class ReviewCommunityService {
   // ─── Friend Activities Feed ───────────────────────────────
 
   Future<List<Map<String, dynamic>>> getFriendActivities() async {
-    // Gabungkan mock activities statis dengan data tindakan user jika ada
-    final activities = <Map<String, dynamic>>[
-      {
-        'user': 'sarah_jean',
-        'avatar': 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80',
-        'action': 'menonton',
-        'movie': 'Dune: Part Two',
-        'movie_id': 693134,
-        'detail': '★ 4.5/5  •  "Visual yang megah!"',
-        'time': '2 jam lalu',
-      },
-      {
-        'user': 'alex_cinema',
-        'avatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80',
-        'action': 'menambahkan ke watchlist',
-        'movie': 'Oppenheimer',
-        'movie_id': 872585,
-        'time': '4 jam lalu',
-      },
-      {
-        'user': 'diana_movies',
-        'avatar': 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80',
-        'action': 'mereview',
-        'movie': 'Parasite',
-        'movie_id': 496243,
-        'detail': '★ 5.0/5  •  "Komedi hitam yang luar biasa satirnya."',
-        'time': '1 hari lalu',
-      },
-      {
-        'user': 'sutan_film',
-        'avatar': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80',
-        'action': 'membuat diskusi',
-        'thread': 'Rekomendasi Film Plot Twist Terbaik Abad 21',
-        'time': '3 hari lalu',
-      },
-    ];
-
-    return activities;
+    // Return empty until real friend activities from Supabase are fetched
+    return [];
   }
 }
