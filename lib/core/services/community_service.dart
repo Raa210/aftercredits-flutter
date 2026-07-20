@@ -354,6 +354,19 @@ class CommunityService {
     }).toList();
   }
 
+  // ─── Search Users ─────────────────────────────────────────
+
+  /// Mencari user berdasarkan username. Max 5 hasil.
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    if (query.trim().isEmpty) return [];
+    final data = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .ilike('username', '%${query.trim()}%')
+        .limit(5);
+    return (data as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
   // ─── Helper Time Ago ──────────────────────────────────────
 
   String _formatTimeAgo(DateTime dateTime) {

@@ -12,6 +12,7 @@ import 'community/widgets/trending_discussion_card.dart';
 import 'community/widgets/popular_movies_card.dart';
 import 'community/thread_detail_screen.dart';
 import 'community/widgets/create_thread_dialog.dart';
+import 'community/user_profile_screen.dart';
 
 class CommunityTab extends StatefulWidget {
   const CommunityTab({super.key});
@@ -33,6 +34,9 @@ class _CommunityTabState extends State<CommunityTab> {
   int _currentPage = 1;
   final int _limit = 10;
   String? _error;
+
+  // User search results
+  List<Map<String, dynamic>> _userResults = [];
 
   final ScrollController _scrollController = ScrollController();
 
@@ -171,7 +175,21 @@ class _CommunityTabState extends State<CommunityTab> {
         _searchQuery = query;
       });
       _loadInitialData();
+      _searchUsers(query);
     });
+  }
+
+  Future<void> _searchUsers(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() => _userResults = []);
+      return;
+    }
+    try {
+      final users = await CommunityService().searchUsers(query);
+      if (mounted) setState(() => _userResults = users);
+    } catch (_) {
+      if (mounted) setState(() => _userResults = []);
+    }
   }
 
   void _onCreateThreadPressed() {
@@ -319,6 +337,11 @@ class _CommunityTabState extends State<CommunityTab> {
 
     return Column(
       children: [
+        // User search results
+        if (_searchQuery.isNotEmpty && _userResults.isNotEmpty) ...[
+          _buildUserResults(),
+          const SizedBox(height: CommunitySpacing.md),
+        ],
         ...List.generate(
           _threads.length,
           (index) {
@@ -383,6 +406,84 @@ class _CommunityTabState extends State<CommunityTab> {
           PopularMoviesCard(
             movies: _popularMovies,
           ),
+      ],
+    );
+  }
+
+  // ─── User Search Results ──────────────────────────────────
+
+  Widget _buildUserResults() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Text(
+            'Pengguna',
+            style: TextStyle(
+              color: CommunityColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 72,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _userResults.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) {
+              final u = _userResults[i];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UserProfileScreen(
+                        userId: u['id'] as String,
+                        username: u['username'] as String? ?? '',
+                        avatarUrl: u['avatar_url'] as String?,
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: CommunityColors.card,
+                    borderRadius: BorderRadius.circular(CommunityRadius.md),
+                    border: Border.all(color: CommunityColors.divider, width: 0.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: CommunityColors.divider,
+                        backgroundImage: u['avatar_url'] != null
+                            ? NetworkImage(u['avatar_url'] as String)
+                            : null,
+                        child: u['avatar_url'] == null
+                            ? const Icon(Icons.person_rounded, color: CommunityColors.textSecondary, size: 20)
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        '@${u['username']}',
+                        style: const TextStyle(
+                          color: CommunityColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
