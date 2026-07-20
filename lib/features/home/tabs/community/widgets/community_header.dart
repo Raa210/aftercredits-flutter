@@ -139,7 +139,7 @@ class CommunityHeader extends StatelessWidget {
           fontSize: 14,
         ),
         decoration: InputDecoration(
-          hintText: 'Cari diskusi...',
+          hintText: 'Cari diskusi atau pengguna...',
           hintStyle: const TextStyle(
             color: CommunityColors.textMuted,
             fontSize: 14,

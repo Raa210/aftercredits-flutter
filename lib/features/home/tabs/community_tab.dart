@@ -413,29 +413,56 @@ class _CommunityTabState extends State<CommunityTab> {
   // ─── User Search Results ──────────────────────────────────
 
   Widget _buildUserResults() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: Text(
-            'Pengguna',
-            style: TextStyle(
-              color: CommunityColors.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CommunityColors.card,
+        borderRadius: BorderRadius.circular(CommunityRadius.lg),
+        border: Border.all(color: CommunityColors.divider, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: CommunityColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.people_rounded, size: 16, color: CommunityColors.primary),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Pengguna Ditemukan',
+                style: TextStyle(
+                  color: CommunityColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_userResults.length} hasil',
+                style: const TextStyle(
+                  color: CommunityColors.textMuted,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
-        ),
-        SizedBox(
-          height: 72,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _userResults.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, i) {
-              final u = _userResults[i];
-              return GestureDetector(
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(color: CommunityColors.divider, height: 1),
+          ),
+          // User list
+          ...List.generate(_userResults.length, (i) {
+            final u = _userResults[i];
+            return Padding(
+              padding: EdgeInsets.only(bottom: i < _userResults.length - 1 ? 8 : 0),
+              child: InkWell(
                 onTap: () {
                   Navigator.push(
                     context,
@@ -448,43 +475,57 @@ class _CommunityTabState extends State<CommunityTab> {
                     ),
                   );
                 },
+                borderRadius: BorderRadius.circular(CommunityRadius.md),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: CommunityColors.card,
+                    color: CommunityColors.background,
                     borderRadius: BorderRadius.circular(CommunityRadius.md),
-                    border: Border.all(color: CommunityColors.divider, width: 0.5),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       CircleAvatar(
-                        radius: 20,
+                        radius: 22,
                         backgroundColor: CommunityColors.divider,
                         backgroundImage: u['avatar_url'] != null
                             ? NetworkImage(u['avatar_url'] as String)
                             : null,
                         child: u['avatar_url'] == null
-                            ? const Icon(Icons.person_rounded, color: CommunityColors.textSecondary, size: 20)
+                            ? const Icon(Icons.person_rounded, color: CommunityColors.textSecondary, size: 22)
                             : null,
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '@${u['username']}',
-                        style: const TextStyle(
-                          color: CommunityColors.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '@${u['username']}',
+                              style: const TextStyle(
+                                color: CommunityColors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const Text(
+                              'Lihat profil',
+                              style: TextStyle(
+                                color: CommunityColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      const Icon(Icons.chevron_right_rounded, color: CommunityColors.textMuted, size: 20),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
