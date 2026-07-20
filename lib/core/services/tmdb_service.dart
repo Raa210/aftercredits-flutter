@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../constants/api_constants.dart';
-import '../../models/movie_model.dart';
+import 'package:aftercredits/core/constants/api_constants.dart';
+import 'package:aftercredits/models/movie_model.dart';
 
 class TmdbService {
   static final TmdbService _instance = TmdbService._internal();

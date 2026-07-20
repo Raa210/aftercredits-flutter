@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animate_do/animate_do.dart';
-import '../../core/theme/app_theme.dart';
-import '../auth/login_screen.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/features/auth/login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});

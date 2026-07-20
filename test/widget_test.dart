@@ -7,7 +7,7 @@ import 'package:aftercredits/main.dart';
 void main() {
   testWidgets('AfterCredits app smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const AfterCreditsApp(showOnboarding: true),
+      const AfterCreditsApp(showAppIntro: true),
     );
     // App should render without crashing
     expect(find.byType(MaterialApp), findsOneWidget);

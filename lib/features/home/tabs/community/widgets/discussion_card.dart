@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../community_colors.dart';
+import 'package:aftercredits/features/home/tabs/community/community_colors.dart';
 
 /// Card modern untuk menampilkan satu thread diskusi.
 ///

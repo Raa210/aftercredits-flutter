@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/auth_service.dart';
-import '../../auth/login_screen.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/core/services/auth_service.dart';
+import 'package:aftercredits/features/auth/login_screen.dart';
 
 /// Halaman Pengaturan — dibuka dari tombol ⚙️ di header profil.
 class SettingsScreen extends StatelessWidget {

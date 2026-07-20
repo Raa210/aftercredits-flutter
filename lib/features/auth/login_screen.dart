@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/services/auth_service.dart';
-import '../../core/services/user_profile_service.dart';
-import '../home/home_screen.dart';
-import '../setup/setup_screen.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/core/services/auth_service.dart';
+import 'package:aftercredits/core/services/user_profile_service.dart';
+import 'package:aftercredits/features/home/home_screen.dart';
+import 'package:aftercredits/features/setup/setup_screen.dart';
 
 // Backward-compatibility alias so existing imports of `LoginScreen` still work.
 typedef LoginScreen = AuthScreen;

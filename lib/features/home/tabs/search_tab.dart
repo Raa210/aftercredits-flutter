@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/movie_card.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/shared/widgets/movie_card.dart';
 
 class SearchTab extends StatefulWidget {
   const SearchTab({super.key});

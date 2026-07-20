@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../core/theme/app_theme.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
 import 'tabs/discover_tab.dart';
 import 'tabs/community_tab.dart';
 import 'tabs/search_tab.dart';

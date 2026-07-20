@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../community_colors.dart';
+import 'package:aftercredits/features/home/tabs/community/community_colors.dart';
 
 /// Sidebar card "Trending Discussion".
 ///

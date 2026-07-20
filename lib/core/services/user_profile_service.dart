@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/user_profile_model.dart';
+import 'package:aftercredits/models/user_profile_model.dart';
 import 'supabase_service.dart';
 
 /// Service for CRUD operations on the Supabase `profiles` table

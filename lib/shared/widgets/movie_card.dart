@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
 
 /// Reusable movie poster card widget
 class MovieCard extends StatelessWidget {

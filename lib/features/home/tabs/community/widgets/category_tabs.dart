@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../community_colors.dart';
+import 'package:aftercredits/features/home/tabs/community/community_colors.dart';
 
 /// Kategori pill/capsule yang dapat di-scroll horizontal.
 class CategoryTabs extends StatelessWidget {

@@ -2,11 +2,11 @@ import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/auth_service.dart';
-import '../../../core/services/user_profile_service.dart';
-import '../../../models/user_profile_model.dart';
-import '../../auth/login_screen.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/core/services/auth_service.dart';
+import 'package:aftercredits/core/services/user_profile_service.dart';
+import 'package:aftercredits/models/user_profile_model.dart';
+import 'package:aftercredits/features/auth/login_screen.dart';
 import 'settings_screen.dart';
 
 // ─── Reverse map: genre ID → nama ────────────────────────

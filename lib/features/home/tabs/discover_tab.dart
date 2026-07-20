@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/tmdb_service.dart';
-import '../../../core/constants/api_constants.dart';
-import '../../../models/movie_model.dart';
+import 'package:aftercredits/core/theme/app_theme.dart';
+import 'package:aftercredits/core/services/tmdb_service.dart';
+import 'package:aftercredits/core/constants/api_constants.dart';
+import 'package:aftercredits/models/movie_model.dart';
 
 class DiscoverTab extends StatefulWidget {
   const DiscoverTab({super.key});
