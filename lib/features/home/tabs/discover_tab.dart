@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/core/services/tmdb_service.dart';
+import 'package:aftercredits/core/services/review_community_service.dart';
 import 'package:aftercredits/core/constants/api_constants.dart';
 import 'package:aftercredits/models/movie_model.dart';
+import 'package:aftercredits/models/community_review_model.dart';
 import 'package:aftercredits/features/movie_detail/movie_detail_screen.dart';
+import 'package:aftercredits/features/review_detail/review_detail_screen.dart';
 
 class DiscoverTab extends StatefulWidget {
   const DiscoverTab({super.key});
@@ -17,6 +20,7 @@ class DiscoverTab extends StatefulWidget {
 
 class _DiscoverTabState extends State<DiscoverTab> {
   final TmdbService _tmdb = TmdbService();
+  final ReviewCommunityService _communityService = ReviewCommunityService();
   final PageController _heroController = PageController();
   Timer? _autoScrollTimer;
 
@@ -24,8 +28,11 @@ class _DiscoverTabState extends State<DiscoverTab> {
   int _heroIndex = 0;
 
   List<MovieModel> _heroMovies = [];
+  List<MovieModel> _nowPlayingMovies = [];
   List<MovieModel> _popularMovies = [];
   List<MovieModel> _hiddenGems = [];
+  List<CommunityReviewModel> _popularReviews = [];
+  List<Map<String, dynamic>> _friendActivities = [];
   bool _isLoading = true;
   bool _genreLoading = false;
 
@@ -73,13 +80,18 @@ class _DiscoverTabState extends State<DiscoverTab> {
       _tmdb.getNowPlaying(),
       _tmdb.getTrendingWeek(),
       _tmdb.getHiddenGems(),
+      _communityService.getPopularReviews(),
+      _communityService.getFriendActivities(),
     ]);
 
     if (!mounted) return;
     setState(() {
-      _heroMovies = results[0].take(8).toList();
-      _popularMovies = results[1].take(15).toList();
-      _hiddenGems = results[2].take(12).toList();
+      _nowPlayingMovies = results[0] as List<MovieModel>;
+      _heroMovies = _nowPlayingMovies.take(8).toList();
+      _popularMovies = results[1] as List<MovieModel>;
+      _hiddenGems = results[2] as List<MovieModel>;
+      _popularReviews = results[3] as List<CommunityReviewModel>;
+      _friendActivities = results[4] as List<Map<String, dynamic>>;
       _isLoading = false;
       _heroIndex = 0;
     });
@@ -100,11 +112,13 @@ class _DiscoverTabState extends State<DiscoverTab> {
       final results = await Future.wait([
         _tmdb.getTrendingWeek(),
         _tmdb.getHiddenGems(),
+        _communityService.getPopularReviews(),
       ]);
       if (!mounted) return;
       setState(() {
-        _popularMovies = results[0].take(15).toList();
-        _hiddenGems = results[1].take(12).toList();
+        _popularMovies = results[0] as List<MovieModel>;
+        _hiddenGems = results[1] as List<MovieModel>;
+        _popularReviews = results[2] as List<CommunityReviewModel>;
         _genreLoading = false;
       });
     } else {
@@ -119,8 +133,8 @@ class _DiscoverTabState extends State<DiscoverTab> {
       ]);
       if (!mounted) return;
       setState(() {
-        _popularMovies = results[0].take(15).toList();
-        _hiddenGems = results[1].take(12).toList();
+        _popularMovies = results[0] as List<MovieModel>;
+        _hiddenGems = results[1] as List<MovieModel>;
         _genreLoading = false;
       });
     }
@@ -187,12 +201,29 @@ class _DiscoverTabState extends State<DiscoverTab> {
                 ),
               )
             else ...[
-              // ── Populer ────────────────────────────────
+              // 1. Review Populer Minggu Ini
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
+                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
                   child: _SectionHeader(
-                    title: 'Populer Minggu Ini',
+                    title: 'Review Populer Minggu Ini',
+                    icon: Icons.star_rounded,
+                    iconColor: AppColors.star,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _genreLoading
+                    ? _buildLoadingBox()
+                    : _buildReviewRow(_popularReviews),
+              ),
+
+              // 2. Film Populer Minggu Ini
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
+                  child: _SectionHeader(
+                    title: 'Film Populer Minggu Ini',
                     icon: Icons.local_fire_department_rounded,
                     iconColor: AppColors.accentRed,
                   ),
@@ -200,17 +231,45 @@ class _DiscoverTabState extends State<DiscoverTab> {
               ),
               SliverToBoxAdapter(
                 child: _genreLoading
-                    ? const SizedBox(
-                        height: 180,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                              color: AppColors.accentRed, strokeWidth: 2),
-                        ),
-                      )
-                    : _buildMoviesRow(_popularMovies, accentColor: AppColors.star),
+                    ? _buildLoadingBox()
+                    : _buildMoviesRow(_popularMovies, accentColor: AppColors.accentRed),
               ),
 
-              // ── Hidden Gems ────────────────────────────
+              // 3. Film yang Sedang Tayang
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
+                  child: _SectionHeader(
+                    title: 'Film yang Sedang Tayang',
+                    icon: Icons.play_circle_fill_rounded,
+                    iconColor: const Color(0xFF3B82F6),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _genreLoading
+                    ? _buildLoadingBox()
+                    : _buildMoviesRow(_nowPlayingMovies, accentColor: const Color(0xFF3B82F6)),
+              ),
+
+              // 4. Aktivitas Teman / Following
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
+                  child: _SectionHeader(
+                    title: 'Aktivitas Teman',
+                    icon: Icons.people_alt_rounded,
+                    iconColor: const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _genreLoading
+                    ? _buildLoadingBox()
+                    : _buildFriendActivities(_friendActivities),
+              ),
+
+              // 5. Hidden Gems
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(0, 24, 0, 12),
@@ -223,21 +282,184 @@ class _DiscoverTabState extends State<DiscoverTab> {
               ),
               SliverToBoxAdapter(
                 child: _genreLoading
-                    ? const SizedBox(
-                        height: 180,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                              color: Color(0xFF7C3AED), strokeWidth: 2),
-                        ),
-                      )
-                    : _buildMoviesRow(_hiddenGems,
-                        accentColor: const Color(0xFF7C3AED)),
+                    ? _buildLoadingBox()
+                    : _buildMoviesRow(_hiddenGems, accentColor: const Color(0xFF7C3AED)),
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  // ─── Feed Helper Widgets ───────────────────────────────────
+
+  Widget _buildLoadingBox() {
+    return const SizedBox(
+      height: 180,
+      child: Center(
+        child: CircularProgressIndicator(color: AppColors.accentRed, strokeWidth: 2),
+      ),
+    );
+  }
+
+  Widget _buildReviewRow(List<CommunityReviewModel> reviews) {
+    if (reviews.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 190,
+      child: ListView.builder(
+        physics: const BouncingScrollPhysics(),
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: reviews.length,
+        itemBuilder: (context, index) {
+          final review = reviews[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ReviewDetailScreen(review: review)),
+                ).then((_) {
+                  // reload reviews when returning so likes update
+                  _loadAll();
+                });
+              },
+              child: Container(
+                width: 280,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.darkSecondary,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border, width: 0.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor: AppColors.darkTertiary,
+                          backgroundImage: review.authorAvatar != null ? NetworkImage(review.authorAvatar!) : null,
+                          child: review.authorAvatar == null
+                              ? Text(review.authorName[0].toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold))
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '@${review.authorName}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const Icon(Icons.star_rounded, color: AppColors.star, size: 14),
+                        const SizedBox(width: 4),
+                        Text(review.rating.toString(), style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Text(
+                        review.text,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(Icons.favorite_rounded, color: AppColors.accentRed, size: 14),
+                        const SizedBox(width: 4),
+                        Text('${review.likesCount} Like', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                        const Spacer(),
+                        Text(review.timeLabel, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFriendActivities(List<Map<String, dynamic>> activities) {
+    if (activities.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: activities.map((act) {
+          final author = act['user'] as String;
+          final avatar = act['avatar'] as String?;
+          final action = act['action'] as String;
+          final detail = act['detail'] as String?;
+          final time = act['time'] as String;
+          
+          final hasMovie = act.containsKey('movie');
+          final target = hasMovie ? act['movie'] as String : act['thread'] as String;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.darkSecondary,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border, width: 0.5),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.darkTertiary,
+                  backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                  child: avatar == null
+                      ? Text(author[0].toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold))
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+                          children: [
+                            TextSpan(text: '@$author ', style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            TextSpan(text: '$action '),
+                            TextSpan(text: target, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      if (detail != null) ...[
+                        const SizedBox(height: 4),
+                        Text(detail, style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontStyle: FontStyle.italic)),
+                      ],
+                      const SizedBox(height: 6),
+                      Text(time, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
