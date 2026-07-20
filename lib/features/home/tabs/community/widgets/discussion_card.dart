@@ -231,7 +231,7 @@ class _DiscussionCardState extends State<DiscussionCard> {
     return Row(
       children: [
         _StatChip(
-          icon: Icons.favorite_rounded,
+          icon: Icons.arrow_upward_rounded,
           iconColor: CommunityColors.primary,
           value: _formatCount(likes),
         ),

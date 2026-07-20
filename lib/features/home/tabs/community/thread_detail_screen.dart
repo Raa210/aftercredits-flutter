@@ -21,6 +21,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
   bool _liking = false;
   int _likesCount = 0;
   final _commentController = TextEditingController();
+  final _commentFocusNode = FocusNode();
   bool _submittingComment = false;
 
   @override
@@ -34,6 +35,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
   @override
   void dispose() {
     _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
   }
 
@@ -349,42 +351,54 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                     // Actions Row (Likes)
                     Row(
                       children: [
-                        InkWell(
-                          onTap: _toggleLike,
-                          borderRadius: BorderRadius.circular(CommunityRadius.pill),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _liked
-                                  ? CommunityColors.primary.withOpacity(0.1)
-                                  : CommunityColors.card,
-                              borderRadius: BorderRadius.circular(CommunityRadius.pill),
-                              border: Border.all(
-                                color: _liked
-                                    ? CommunityColors.primary
-                                    : CommunityColors.divider,
-                                width: 0.5,
-                              ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: CommunityColors.card,
+                            borderRadius: BorderRadius.circular(CommunityRadius.pill),
+                            border: Border.all(
+                              color: CommunityColors.divider,
+                              width: 0.5,
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                  size: 16,
-                                  color: _liked ? CommunityColors.primary : CommunityColors.textSecondary,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '$_likesCount Like',
-                                  style: TextStyle(
+                          ),
+                          child: Row(
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  if (!_liked) _toggleLike();
+                                },
+                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(CommunityRadius.pill)),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                                  child: Icon(
+                                    Icons.arrow_upward_rounded,
+                                    size: 18,
                                     color: _liked ? CommunityColors.primary : CommunityColors.textSecondary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              Text(
+                                '$_likesCount',
+                                style: TextStyle(
+                                  color: _liked ? CommunityColors.primary : CommunityColors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  if (_liked) _toggleLike();
+                                },
+                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(CommunityRadius.pill)),
+                                child: const Padding(
+                                  padding: EdgeInsets.fromLTRB(8, 8, 16, 8),
+                                  child: Icon(
+                                    Icons.arrow_downward_rounded,
+                                    size: 18,
+                                    color: CommunityColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -475,6 +489,21 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                                       ),
                                     ),
                                     const Spacer(),
+                                    InkWell(
+                                      onTap: () {
+                                        _commentController.text = '@${c['author']} ';
+                                        _commentFocusNode.requestFocus();
+                                      },
+                                      child: const Text(
+                                        'Reply',
+                                        style: TextStyle(
+                                          color: CommunityColors.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       c['time'] as String,
                                       style: const TextStyle(
@@ -558,6 +587,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                     ),
                     child: TextField(
                       controller: _commentController,
+                      focusNode: _commentFocusNode,
                       style: const TextStyle(color: CommunityColors.textPrimary, fontSize: 14),
                       decoration: const InputDecoration(
                         hintText: 'Tulis komentar...',
