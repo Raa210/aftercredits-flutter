@@ -508,6 +508,29 @@ class ReviewCommunityService {
     }
 
     await prefs.setStringList(_keyLikedReviews, ids);
+
+    // Update to Supabase if possible
+    try {
+      final data = await supabase
+          .from('reviews')
+          .select('likes_count')
+          .eq('id', reviewId)
+          .maybeSingle();
+
+      if (data != null) {
+        int currentLikes = data['likes_count'] as int? ?? 0;
+        int newLikes = nowLiked ? currentLikes + 1 : currentLikes - 1;
+        if (newLikes < 0) newLikes = 0;
+
+        await supabase
+            .from('reviews')
+            .update({'likes_count': newLikes})
+            .eq('id', reviewId);
+      }
+    } catch (_) {
+      // Abaikan error (misal review lokal/mock atau offline)
+    }
+
     return nowLiked;
   }
 
