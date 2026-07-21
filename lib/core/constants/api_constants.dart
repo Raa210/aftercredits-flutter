@@ -1,17 +1,9 @@
 /// =====================================================================
 ///  TMDB API Configuration
-///  Masukkan API token kamu di sini.
-///
-///  Cara mendapatkan token:
-///  1. Buat akun di https://www.themoviedb.org/
-///  2. Buka Settings → API → Request an API Key
-///  3. Copy "API Read Access Token (v4 auth)" — bukan API Key v3
-///  4. Paste token di bawah sebagai nilai TMDB_ACCESS_TOKEN
 /// =====================================================================
 
 class ApiConstants {
   // ─── TMDB Credentials ──────────────────────────────────
-  /// Ganti dengan API Read Access Token (v4) dari TMDB
   static const String tmdbAccessToken =
       'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI4OGZlMjZkZGQ3ODFiNGUwZmQ0MGE4MThiZjAzYzQ1NSIsIm5iZiI6MTc3OTE1NTgzOS4zNjMwMDAyLCJzdWIiOiI2YTBiYzM3ZjgyMjFhM2VkM2Y0NjZkYzAiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.v3Us_FntbthPkZxWT10tya4_Lfmb_bg2-QwWc17TzwE';
 

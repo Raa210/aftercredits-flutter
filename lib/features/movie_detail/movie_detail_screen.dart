@@ -203,8 +203,10 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   Future<void> _openTrailer() async {
     if (_trailerKey == null) return;
     final uri = Uri.parse('https://www.youtube.com/watch?v=$_trailerKey');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      await launchUrl(uri);
+    } catch (_) {
+      if (mounted) _showSnack('Tidak dapat membuka trailer');
     }
   }
 

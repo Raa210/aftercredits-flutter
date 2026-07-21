@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:aftercredits/core/theme/app_theme.dart';
 import 'package:aftercredits/features/auth/login_screen.dart';
+import 'package:aftercredits/core/services/tmdb_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -23,12 +24,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'Film luar biasa yang belum banyak dikenal menunggumu. Rekomendasi harian dipersonalisasi khusus seleramu.',
       badge: 'Discover',
       posterUrls: [
-        'https://image.tmdb.org/t/p/w342/ljsZTbVsrQSqNgWeRnEkekVgiOfH.jpg',
-        'https://image.tmdb.org/t/p/w342/qJ2tW6WMUDux911BTUgMe1nNaD3.jpg',
-        'https://image.tmdb.org/t/p/w342/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
-        'https://image.tmdb.org/t/p/w342/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg',
-        'https://image.tmdb.org/t/p/w342/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
         'https://image.tmdb.org/t/p/w342/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+        'https://image.tmdb.org/t/p/w342/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+        'https://image.tmdb.org/t/p/w342/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg',
+        'https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
+        'https://image.tmdb.org/t/p/w342/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg',
+        'https://image.tmdb.org/t/p/w342/6CoRTJTmijhBLJTUNoVSUNxZMEI.jpg',
       ],
       accentColor: AppColors.accentRed,
       gradientColors: [AppColors.accentRed, Color(0xFFFF6B35)],
@@ -41,11 +42,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       badge: 'Community',
       posterUrls: [
         'https://image.tmdb.org/t/p/w342/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg',
-        'https://image.tmdb.org/t/p/w342/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg',
-        'https://image.tmdb.org/t/p/w342/rAiYTfKGqDCRbZN7lKoO86K6Xo4.jpg',
-        'https://image.tmdb.org/t/p/w342/6CoRTJTmijhBLJTUNoVSUNxZMEI.jpg',
-        'https://image.tmdb.org/t/p/w342/vfzE3pjE6MS0tYjCfX84vNXyep8.jpg',
+        'https://image.tmdb.org/t/p/w342/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
         'https://image.tmdb.org/t/p/w342/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg',
+        'https://image.tmdb.org/t/p/w342/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+        'https://image.tmdb.org/t/p/w342/6CoRTJTmijhBLJTUNoVSUNxZMEI.jpg',
+        'https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
       ],
       accentColor: Color(0xFF7C3AED),
       gradientColors: [Color(0xFF7C3AED), Color(0xFFDB2777)],
@@ -57,18 +58,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'Lacak setiap film yang kamu tonton. Lihat profil seleramu divisualisasikan — genre favoritmu, rating rata-rata, dan lebih banyak lagi.',
       badge: 'Taste Profile',
       posterUrls: [
-        'https://image.tmdb.org/t/p/w342/9cqNxx0GxF0bAY74W56MAxi3mKN.jpg',
-        'https://image.tmdb.org/t/p/w342/edv5CZvWj09upOsy2Y6IwDhK8bt.jpg',
-        'https://image.tmdb.org/t/p/w342/xkJdikPVp9VBe2xFN3Vqax15Bk8.jpg',
-        'https://image.tmdb.org/t/p/w342/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg',
-        'https://image.tmdb.org/t/p/w342/bQXAqRx2Fgc46uCVWgoPz5L5Dtr.jpg',
-        'https://image.tmdb.org/t/p/w342/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg',
+        'https://image.tmdb.org/t/p/w342/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
+        'https://image.tmdb.org/t/p/w342/6CoRTJTmijhBLJTUNoVSUNxZMEI.jpg',
+        'https://image.tmdb.org/t/p/w342/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+        'https://image.tmdb.org/t/p/w342/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg',
+        'https://image.tmdb.org/t/p/w342/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+        'https://image.tmdb.org/t/p/w342/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg',
       ],
       accentColor: Color(0xFF0EA5E9),
       gradientColors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
       icon: Icons.pie_chart_rounded,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDynamicPosters();
+  }
+
+  Future<void> _fetchDynamicPosters() async {
+    try {
+      final tmdb = TmdbService();
+      final movies = await tmdb.getPopular();
+      final validPosters = movies
+          .where((m) => m.posterUrl != null)
+          .map((m) => m.posterUrl!)
+          .toList();
+      if (validPosters.length >= 18 && mounted) {
+        setState(() {
+          _pages[0].posterUrls = validPosters.sublist(0, 6);
+          _pages[1].posterUrls = validPosters.sublist(6, 12);
+          _pages[2].posterUrls = validPosters.sublist(12, 18);
+        });
+      }
+    } catch (_) {
+      // Abaikan jika offline, fallback static tetap aktif
+    }
+  }
 
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
@@ -138,12 +165,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       );
                     }
                   },
-                  icon: const Icon(Icons.arrow_back_rounded,
-                      color: AppColors.textMuted, size: 18),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                    size: 18,
+                  ),
                   label: const Text(
                     'Kembali',
                     style: TextStyle(
-                      color: AppColors.textMuted,
+                      color: AppColors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -163,7 +193,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Text(
                       'Lewati',
                       style: TextStyle(
-                        color: AppColors.textMuted,
+                        color: AppColors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -182,7 +212,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-          28, 24, 28, MediaQuery.of(context).padding.bottom + 32),
+        28,
+        24,
+        28,
+        MediaQuery.of(context).padding.bottom + 32,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -268,9 +302,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onTap: isLast
                           ? _completeOnboarding
                           : () => _pageController.nextPage(
-                                duration: const Duration(milliseconds: 400),
-                                curve: Curves.easeInOut,
-                              ),
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeInOut,
+                            ),
                       borderRadius: BorderRadius.circular(16),
                       child: Center(
                         child: Row(
@@ -346,7 +380,10 @@ class _OnboardingPage extends StatelessWidget {
           left: 0,
           right: 0,
           height: size.height * 0.60,
-          child: _PosterGrid(posterUrls: data.posterUrls, accent: data.accentColor),
+          child: _PosterGrid(
+            posterUrls: data.posterUrls,
+            accent: data.accentColor,
+          ),
         ),
 
         // Fade overlay at bottom of image area
@@ -387,11 +424,15 @@ class _OnboardingPage extends StatelessWidget {
                   delay: const Duration(milliseconds: 100),
                   duration: const Duration(milliseconds: 500),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: data.accentColor.withOpacity(0.15),
-                      border: Border.all(color: data.accentColor.withOpacity(0.4)),
+                      border: Border.all(
+                        color: data.accentColor.withOpacity(0.4),
+                      ),
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Row(
@@ -487,14 +528,7 @@ class _PosterGrid extends StatelessWidget {
               left: positions[i]['left'],
               top: positions[i]['top'],
               child: Transform.rotate(
-                angle: [
-                  -0.08,
-                  0.05,
-                  -0.06,
-                  0.09,
-                  -0.04,
-                  0.07
-                ][i],
+                angle: [-0.08, 0.05, -0.06, 0.09, -0.04, 0.07][i],
                 child: _PosterCard(
                   url: posterUrls[i],
                   width: posterW,
@@ -573,12 +607,12 @@ class _OnboardingData {
   final String title;
   final String subtitle;
   final String badge;
-  final List<String> posterUrls;
+  List<String> posterUrls;
   final Color accentColor;
   final List<Color> gradientColors;
   final IconData icon;
 
-  const _OnboardingData({
+  _OnboardingData({
     required this.title,
     required this.subtitle,
     required this.badge,

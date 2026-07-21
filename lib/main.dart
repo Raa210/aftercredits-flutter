@@ -33,16 +33,11 @@ void main() async {
     // publishableKey: SupabaseConfig.publishableKey, // uncomment if needed
   );
 
-  final prefs = await SharedPreferences.getInstance();
-  final onboardingDone = prefs.getBool('onboarding_done') ?? false;
-
-  runApp(AfterCreditsApp(showAppIntro: !onboardingDone));
+  runApp(const AfterCreditsApp());
 }
 
 class AfterCreditsApp extends StatelessWidget {
-  final bool showAppIntro;
-
-  const AfterCreditsApp({super.key, required this.showAppIntro});
+  const AfterCreditsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -50,16 +45,14 @@ class AfterCreditsApp extends StatelessWidget {
       title: 'AfterCredits',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: _SplashRouter(showAppIntro: showAppIntro),
+      home: const _SplashRouter(),
     );
   }
 }
 
 /// Animated splash screen that determines where to route the user.
 class _SplashRouter extends StatefulWidget {
-  final bool showAppIntro;
-
-  const _SplashRouter({required this.showAppIntro});
+  const _SplashRouter();
 
   @override
   State<_SplashRouter> createState() => _SplashRouterState();
@@ -112,19 +105,15 @@ class _SplashRouterState extends State<_SplashRouter>
   /// Determines which screen to show after the splash.
   ///
   /// Priority:
-  /// 1. Show app intro slides if never seen.
-  /// 2. Auth screen if no Supabase session.
-  /// 3. Setup screen if session exists but profile is incomplete.
-  /// 4. Home screen if everything is good.
+  /// 1. Onboarding screen if no Supabase session.
+  /// 2. Setup screen if session exists but profile is incomplete.
+  /// 3. Home screen if everything is good.
   Future<Widget> _resolveTarget() async {
-    // Step 1 — first-time app intro
-    if (widget.showAppIntro) return const OnboardingScreen();
-
-    // Step 2 — check Supabase session
+    // Step 1 — check Supabase session
     final session = supabase.auth.currentSession;
-    if (session == null) return const AuthScreen();
+    if (session == null) return const OnboardingScreen();
 
-    // Step 3 — session exists: check if user has completed setup
+    // Step 2 — session exists: check if user has completed setup
     try {
       final profile =
           await UserProfileService().getProfile(session.user.id);
@@ -133,8 +122,8 @@ class _SplashRouterState extends State<_SplashRouter>
       }
       return const HomeScreen();
     } catch (_) {
-      // On any error (network, etc.), fall back to auth
-      return const AuthScreen();
+      // On any error (network, etc.), fall back to onboarding
+      return const OnboardingScreen();
     }
   }
 

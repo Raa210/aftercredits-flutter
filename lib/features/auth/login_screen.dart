@@ -68,8 +68,8 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     try {
       final res = await _auth.signInWithGoogle();
-      
-      // Jika res null, itu artinya aplikasi sedang berjalan di Web dan melakukan 
+
+      // Jika res null, itu artinya aplikasi sedang berjalan di Web dan melakukan
       // redirect halaman, atau tidak ada user. Biarkan redirect berjalan.
       if (res != null && res.user != null && mounted) {
         await _navigateAfterAuth(res.user!.id);
@@ -147,7 +147,10 @@ class _AuthScreenState extends State<AuthScreen> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -310,8 +313,11 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 1),
-            child: Icon(Icons.warning_rounded,
-                color: AppColors.accentRed, size: 16),
+            child: Icon(
+              Icons.warning_rounded,
+              color: AppColors.accentRed,
+              size: 16,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -365,15 +371,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.network(
-                    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
-                    width: 22,
-                    height: 22,
-                    errorBuilder: (_, __, ___) => SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CustomPaint(painter: _GoogleLogoPainter()),
-                    ),
+                  Image.asset(
+                    'assets/images/google-logo.png',
+                    width: 20,
+                    height: 20,
                   ),
                   const SizedBox(width: 10),
                   const Flexible(
@@ -397,56 +398,3 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-// Google 'G' logo painter (Fallback offline)
-// ─────────────────────────────────────────────────────────
-
-class _GoogleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-    
-    final Rect rect = Rect.fromLTWH(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
-    final double stroke = w * 0.22;
-    
-    final bluePaint = Paint()
-      ..color = const Color(0xFF4285F4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(rect, -0.4, 1.2, false, bluePaint);
-
-    final greenPaint = Paint()
-      ..color = const Color(0xFF34A853)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(rect, 0.8, 1.1, false, greenPaint);
-
-    final yellowPaint = Paint()
-      ..color = const Color(0xFFFBBC05)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(rect, 1.9, 0.9, false, yellowPaint);
-
-    final redPaint = Paint()
-      ..color = const Color(0xFFEA4335)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(rect, 2.8, 1.0, false, redPaint);
-
-    final barPaint = Paint()
-      ..color = const Color(0xFF4285F4)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-      Rect.fromLTRB(w * 0.5, h * 0.5 - stroke * 0.5, w * 0.9, h * 0.5 + stroke * 0.5),
-      barPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
